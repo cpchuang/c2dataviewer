@@ -380,11 +380,19 @@ class MouseOver:
 
     def populate_cache(self):
         for ch in self.widget.channels:
-            if ch.pvname == 'None' or ch.pvname not in self.widget.data:
+            if ch.pvname == 'None':
                 continue
             field = ch.pvname
             self.data_cache[field] = self.widget.data.get(field)
-    
+        for f in self.display_fields:
+            if f in self.data_cache:
+                continue
+            self.data_cache[f] = self.widget.data.get(f)
+
+        xaxis = self.widget.current_xaxes
+        if xaxis and xaxis != 'None' and xaxis not in self.data_cache:
+            self.data_cache[xaxis] = self.widget.data.get(xaxis)
+            
     def update_textbox(self):
         if self.mouse_index is None or not self.enabled:
             return
