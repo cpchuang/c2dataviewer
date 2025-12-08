@@ -67,10 +67,14 @@ def load_config(N=None):
         raise RuntimeError("No configuration file found.")
     cf = ConfigParser()
     if N is not None:
-        N = os.path.expanduser(N)
-        if not os.path.isfile(N):
-            raise RuntimeError("%s not found." % (N))
-        cf.read(N)
+        if N == '-':
+            # Read config from stdin
+            cf.read_string(sys.stdin.read())
+        else:
+            N = os.path.expanduser(N)
+            if not os.path.isfile(N):
+                raise RuntimeError("%s not found." % (N))
+            cf.read(N)
     else:
         cf.read(cfgfile)
     return cf
