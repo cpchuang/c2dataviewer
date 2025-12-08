@@ -1,3 +1,6 @@
+# Release 1.15.3 (12/08/2025)
+- support reading config from stdin
+
 # Release 1.15.2 (11/25/2025)
 - Fix bug to make sure mouse over data match plot
 
