@@ -384,14 +384,9 @@ class MouseOver:
                 continue
             field = ch.pvname
             self.data_cache[field] = self.widget.data.get(field)
+            
         for f in self.display_fields:
-            if f in self.data_cache:
-                continue
             self.data_cache[f] = self.widget.data.get(f)
-
-        xaxis = self.widget.current_xaxes
-        if xaxis and xaxis != 'None' and xaxis not in self.data_cache:
-            self.data_cache[xaxis] = self.widget.data.get(xaxis)
             
     def update_textbox(self):
         if self.mouse_index is None or not self.enabled:
@@ -443,8 +438,6 @@ class MouseOver:
                 if xaxis_data is not None and index < len(xaxis_data):
                     xvalue = xaxis_data[index]
                     
-
-                text.append(f"{xaxis}={xaxis_value}")
 
             # Update highlight points for each channel
             highlight_idx = 0
