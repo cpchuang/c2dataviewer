@@ -1,3 +1,6 @@
+# Release 1.15.4 (12/09/2025)
+- Additional fix the mouse over cache, remove xaxis mouseover display
+
 # Release 1.15.3 (12/08/2025)
 - support reading config from stdin
 - fix bug in mouse over to cache all data displayed
