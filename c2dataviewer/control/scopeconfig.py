@@ -18,10 +18,9 @@ PVA object viewer utilities
 @author: Guobao Shen <gshen@anl.gov>
 """
 
-DEFAULT_MINIMUM_CHANNELS_NUMBER : int = 4
-DEFAULT_MINIMUM_WAVEFORMS_NUMBER : int = 4
-DEFAULT_MAXIMUM_CHANNELS_NUMBER : int = 10
-DEFAULT_MAXIMUM_WAVEFORM_NUMBER : int = 10
+MINIMUM_CHANNEL_NUMBER : int = 1
+DEFAULT_CHANNEL_NUMBER : int = 4
+MAXIMUM_CHANNEL_NUMBER : int = 10
 
 class Configure(ScopeConfigureBase):
     """
@@ -80,7 +79,7 @@ class Configure(ScopeConfigureBase):
         :return:
         """
         # get channel counts to display, 4 by default
-        self.counts = self.params.get(Scope.CHANNEL_COUNT, default = DEFAULT_MINIMUM_CHANNELS_NUMBER)
+        self.counts = self.params.get(Scope.CHANNEL_COUNT, default = DEFAULT_CHANNEL_NUMBER)
         channel = []
 
         #Read channel information.  Channel order is
@@ -88,7 +87,7 @@ class Configure(ScopeConfigureBase):
         chan_cfgs = self.params.get_channel_config()
 
         self.counts = max(self.counts, len(chan_cfgs))
-        self.counts = min(self.counts, DEFAULT_MAXIMUM_CHANNELS_NUMBER)
+        self.counts = min(self.counts, MAXIMUM_CHANNEL_NUMBER)
         
         for i in range(self.counts):
             default_cfg = {
@@ -140,7 +139,6 @@ class Configure(ScopeConfigureBase):
             {"name": "PV", "type": "str", "value": pv},
             {"name": "PV status", "type": "str", "value": "Disconnected", "readonly": True},
             {"name": "Start", "type": "bool", "value": start},
-            {'name' : 'Channels', 'type' : 'int', 'value' : self.counts, 'limits' : [1, 10]},
         ]
 
         children.extend(newchildren)
@@ -176,13 +174,13 @@ class Configure(ScopeConfigureBase):
                "type": "group",
                "expanded": True,
                "children": [
-                   {"name": "ArrayId", "type": "list", "limits": id_value, "value": self.default_arrayid},
-                   {"name": "X Axes", "type": "list", "limits": axes, "value": self.default_xaxes},
-                   {"name": "Major Ticks", "type": "int", "value": self.default_major_tick, 'decimals':20},
-                   {"name": "Minor Ticks", "type": "int", "value": self.default_minor_tick, 'decimals':20},
-                   {"name": "Extra Display Fields", "type": "checklist", "value": extra_fields, "limits": extra_fields, "expanded": False},
-                   {"name": "MO Disp Location", "type": "list", "limits": ['top-right', 'bottom-right', 'bottom-left'], "value": mo_display_loc}
-
+                    {"name": "ArrayId", "type": "list", "limits": id_value, "value": self.default_arrayid},
+                    {"name": "X Axes", "type": "list", "limits": axes, "value": self.default_xaxes},
+                    {"name": "Major Ticks", "type": "int", "value": self.default_major_tick, 'decimals':20},
+                    {"name": "Minor Ticks", "type": "int", "value": self.default_minor_tick, 'decimals':20},
+                    {"name": "Extra Display Fields", "type": "checklist", "value": extra_fields, "limits": extra_fields, "expanded": False},
+                    {"name": "MO Disp Location", "type": "list", "limits": ['top-right', 'bottom-right', 'bottom-left'], "value": mo_display_loc},
+                    {'name' : 'Channel count', 'type' : 'int', 'value' : self.counts, 'limits' : [1, 10]},
                    ]
                }
         return cfg

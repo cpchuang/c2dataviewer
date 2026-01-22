@@ -25,6 +25,11 @@ import math
 import statistics
 from typing import Callable
 
+
+MINIMUM_CHANNEL_NUMBER : int = 1
+DEFAULT_CHANNEL_NUMBER : int = 4
+MAXIMUM_CHANNEL_NUMBER : int = 10
+
 class ScopeController(ScopeControllerBase):
 
     def __init__(self, widget, model, parameters, **kwargs):
@@ -37,7 +42,7 @@ class ScopeController(ScopeControllerBase):
         """
         self.color_pattern = ['#FFFF00', '#FF00FF', '#55FF55', '#00FFFF', '#5555FF', '#5500FF', '#FF5555', '#0000FF', '#FFAA00', '#000000']
 
-        nchannels = parameters.child('Acquisition', 'Channels').value()
+        nchannels = parameters.child('Config', 'Channel count').value()
         self.channels = []
         for i in range(nchannels):
             self.channels.append(ScopePlotChannel('None', self.color_pattern[i]))
@@ -107,7 +112,7 @@ class ScopeController(ScopeControllerBase):
             fields = kwargs['fields'].split(',')
             total_fields = len(fields)
             if total_fields > len(self.channels) :
-                self.parameters.child('Acquisition', 'Channels').setValue(total_fields)
+                self.parameters.child('Config', 'Channel count').setValue(total_fields)
                 self.set_channels_number(number = total_fields)
             for i, f in enumerate(fields):
                 chan_name = "Channel %s" % (i + 1)
@@ -158,14 +163,6 @@ class ScopeController(ScopeControllerBase):
             else:
                 yield sep.join(kprefixs + [k]), v
 
-    def execute_later(instruction : Callable[[], None]) -> None :
-        '''
-        Executes instruction after event pile is emptied, avoiding SegFaults. See QtCore's documentation.
-
-        :param instruction: The function to be executed.
-        '''
-        QtCore.QTimer.singleShot(0, instruction)
-
     def muted(self, instruction : Callable[[], None]) -> None :
         '''
         Disconnects then reconnects signal emited on parameter change, avoiding recursive calls and SegFaults.
@@ -187,7 +184,7 @@ class ScopeController(ScopeControllerBase):
         
         :param number: The new number of sections that should be displayed.
         '''
-        if number > 10 or number < 1 or type(number) is not int:
+        if number > MAXIMUM_CHANNEL_NUMBER or number < MINIMUM_CHANNEL_NUMBER or type(number) is not int:
             raise ValueError(f'Invalid channel number: {number}. Must be integer between 1 and 10.')
         previous_number = len(self.channels)
         if previous_number > number:
@@ -195,11 +192,11 @@ class ScopeController(ScopeControllerBase):
             while previous_number > number:
                 self.muted(lambda : self.parameters.child('Channel %s' % previous_number).remove())
                 previous_number -= 1
-        else:
-            while previous_number < number:
-                self.muted(lambda : self.parameters.insertChild(self.parameters.child('Statistics'), Configure.new_channel(previous_number + 1, self.color_pattern[previous_number], ['None'], 0)))
-                self.channels.append(ScopePlotChannel('None', self.color_pattern[previous_number]))
-                previous_number = len(self.channels)
+        else: # If user asked for increase channel count:
+            while previous_number < number: # While there are not enough:
+                self.muted(lambda : self.parameters.insertChild(self.parameters.child('Statistics'), Configure.new_channel(previous_number + 1, self.color_pattern[previous_number], ['None'], 0))) # Add one parameter corresponding to the new channel.
+                self.channels.append(ScopePlotChannel('None', self.color_pattern[previous_number])) # Add one new PlotChannel object to the list.
+                previous_number = len(self.channels) # Update the channel number for while loop.
         self._win.parameterPane.setParameters(self.parameters, showTop = False)
         self.update_fdr()
         self._win.graphicsWidget.setup_plot(channels = self.channels)
@@ -404,13 +401,13 @@ class ScopeController(ScopeControllerBase):
                         self.start_plotting()
                     else:
                         self.stop_plotting()
+                elif childName == 'Config.Channel count':
+                    self.set_channels_number(number = data)
                 elif 'Channel ' in childName:
                     chan, field = childName.split('.')
                     self.set_channel_data(chan, field, data)
                 elif childName == "Config.ArrayId":
                     self.set_arrayid(data)
-                elif childName == 'Acquisition.Channels':
-                    self.set_channels_number(number = data)
                 elif childName == "Config.X Axes":
                     self.set_xaxes(data)
                 elif childName == "Config.Major Ticks":
@@ -623,6 +620,8 @@ class ScopeController(ScopeControllerBase):
         mo_location = self.parameters.child("Config", "MO Disp Location").value()
         if mo_location:
             serializer.set(Scope.MOUSE_OVER_DISPLAY_LOCATION, mo_location)
+
+        serializer.set(Scope.CHANNEL_COUNT, self.parameters.child('Config', 'Channel count').value())
 
         # Serialize channel configurations
         chan_cfgs = []
