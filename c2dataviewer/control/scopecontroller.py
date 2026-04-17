@@ -389,13 +389,21 @@ class ScopeController(ScopeControllerBase):
 
                 if childName == "Acquisition.PV":
                     # stop DAQ and update pv info
-                    self.stop_plotting()
-                    self.model.update_device(data, restart=False)
-                    if data != "":
-                        self.update_fdr()
-                    else:
-                        self.update_fdr(empty=True)
-                    self.reset_object()
+                    try:
+                        self.stop_plotting()
+                        self.model.update_device(data, restart=False)
+                        if data != "":
+                            self.update_fdr()
+                        else:
+                            self.update_fdr(empty=True)
+
+                        # Recalculate object size and readjust buffer size
+                        # if PV name changed
+                        self.auto_buffer_size = True
+                        self.object_size_tally = []
+                        self.object_size = None
+                    except Exception as e:
+                        self.notify_warning('Failed to update PV: ' + (str(e)))
                 elif childName == "Acquisition.Start":
                     if data:
                         self.start_plotting()
@@ -498,11 +506,6 @@ class ScopeController(ScopeControllerBase):
         self.object_size = size
         self.__calc_buffer_size()
 
-    def reset_object(self) -> None :
-        self.auto_buffer_size = True
-        self.object_size = None
-        self.object_size_tally = []
-        
     def monitor_callback(self, data):
         # Calculate object size
         objlen = 0
