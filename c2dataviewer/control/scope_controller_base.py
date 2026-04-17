@@ -11,7 +11,7 @@ from ..model import ConnectionState
 import math
 from .config import Scope
 from PyQt5 import QtWidgets
-import logging
+from pyqtgraph import functions as fn
 
 class ScopeControllerBase:
     def __init__(self, widget, model, parameters, warning, channels=[]):
@@ -55,6 +55,17 @@ class ScopeControllerBase:
         # Setup save configuration button
         self._win.saveConfigButton.clicked.connect(self._on_save_config_action)
 
+
+    def blockParamChangeSignal(self):
+        """
+        Context manager that temporarily disconnects sigTreeStateChanged from
+        parameter_change, preventing recursive calls and SegFaults. Use whenever
+        code inside the controller modifies a parameter value.
+
+            with self.blockParamChangeSignal():
+                child.setValue(...)
+        """
+        return fn.SignalBlock(self.parameters.sigTreeStateChanged, self.parameter_change)
 
     def set_display_mode(self, val):
         self._win.graphicsWidget.set_display_mode(val)
@@ -314,40 +325,32 @@ class ScopeControllerBase:
         self.lastArrays = arraysReceived
         self.arrays = np.append(self.arrays, n)[-10:]
 
-        # Try to disconnect signal to prevent recursive calls of callback and then SegFaults.
-        try:
-            self.parameters.sigTreeStateChanged.disconnect(self.parameter_change)
-            reconnect = True
-        except TypeError:
-            logging.getLogger().error('Impossible to disconnect parameter signal.')
-            reconnect = False
-        for q in self.parameters.child("Statistics").children():
-            if q.name() == 'CPU':
-                q.setValue(cpu)
-            elif q.name() == 'Lost Arrays':
-                q.setValue(self._win.graphicsWidget.lostArrays)
-            elif q.name() == 'Tot. Arrays':
-                q.setValue(self._win.graphicsWidget.arraysReceived)
-            elif q.name() == 'Arrays/Sec':
-                q.setValue(self.arrays.mean())
-            elif q.name() == 'Bytes/Sec':
-                q.setValue(self.arrays.mean() * self._win.graphicsWidget.data_size)
-            elif q.name() == 'Rate':
-                q.setValue(self._win.graphicsWidget.fps)
+        with self.blockParamChangeSignal():
+            for q in self.parameters.child("Statistics").children():
+                if q.name() == 'CPU':
+                    q.setValue(cpu)
+                elif q.name() == 'Lost Arrays':
+                    q.setValue(self._win.graphicsWidget.lostArrays)
+                elif q.name() == 'Tot. Arrays':
+                    q.setValue(self._win.graphicsWidget.arraysReceived)
+                elif q.name() == 'Arrays/Sec':
+                    q.setValue(self.arrays.mean())
+                elif q.name() == 'Bytes/Sec':
+                    q.setValue(self.arrays.mean() * self._win.graphicsWidget.data_size)
+                elif q.name() == 'Rate':
+                    q.setValue(self._win.graphicsWidget.fps)
 
-        try:
-            for q in self.parameters.child("Trigger").children():
-                if q.name() == "Trig Status":
-                    stat_str = 'Disconnected'
-                    if self.trigger_is_monitor:
-                        stat_str = self._win.graphicsWidget.trigger.status()
-                    q.setValue(stat_str)
-                elif q.name() == "Trig Value":
-                    q.setValue(str(self._win.graphicsWidget.trigger.trigger_value))
-        except:
-            pass
-        if reconnect:
-            self.parameters.sigTreeStateChanged.connect(self.parameter_change)
+            try:
+                for q in self.parameters.child("Trigger").children():
+                    if q.name() == "Trig Status":
+                        stat_str = 'Disconnected'
+                        if self.trigger_is_monitor:
+                            stat_str = self._win.graphicsWidget.trigger.status()
+                        q.setValue(stat_str)
+                    elif q.name() == "Trig Value":
+                        q.setValue(str(self._win.graphicsWidget.trigger.trigger_value))
+            except:
+                pass
 
         #handle any auto-adjustments
         if self.trigger_auto_scale and self._win.graphicsWidget.trigger_mode():
