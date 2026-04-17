@@ -18,10 +18,16 @@ import pyqtgraph
 import pvaccess as pva
 from ..model import ConnectionState
 from .scope_controller_base import ScopeControllerBase
+from .scopeconfig import Configure
 from ..view.scope_display import PlotChannel as ScopePlotChannel
 from pyqtgraph.Qt import QtCore
 import math
 import statistics
+
+
+MINIMUM_CHANNEL_NUMBER : int = 1
+DEFAULT_CHANNEL_NUMBER : int = 4
+MAXIMUM_CHANNEL_NUMBER : int = 10
 
 class ScopeController(ScopeControllerBase):
 
@@ -33,18 +39,16 @@ class ScopeController(ScopeControllerBase):
         :param parameters:
         :param channels:
         """
-        self.color_pattern = kwargs.get("color", 
-                                        ['#FFFF00', '#FF00FF', '#55FF55', '#00FFFF', '#5555FF',
-                                         '#5500FF', '#FF5555', '#0000FF', '#FFAA00', '#000000'])
+        self.color_pattern = ['#FFFF00', '#FF00FF', '#55FF55', '#00FFFF', '#5555FF', '#5500FF', '#FF5555', '#0000FF', '#FFAA00', '#000000']
 
-        nchannels = kwargs.get("channels", 4)
+        nchannels = parameters.child('Config', 'Channel count').value()
         self.channels = []
         for i in range(nchannels):
             self.channels.append(ScopePlotChannel('None', self.color_pattern[i]))
 
         warning = kwargs["WARNING"]
 
-        super().__init__(widget, model, parameters, warning, channels=self.channels, **kwargs)
+        super().__init__(widget, model, parameters, warning, channels=self.channels)
         
         self.default_arrayid = "None"
         self.default_xaxes = "None"
@@ -105,6 +109,10 @@ class ScopeController(ScopeControllerBase):
 
         if kwargs['fields']:
             fields = kwargs['fields'].split(',')
+            total_fields = len(fields)
+            if total_fields > len(self.channels) :
+                self.parameters.child('Config', 'Channel count').setValue(total_fields)
+                self.set_channels_number(number = total_fields)
             for i, f in enumerate(fields):
                 chan_name = "Channel %s" % (i + 1)
                 child = self.parameters.child(chan_name)
@@ -153,6 +161,31 @@ class ScopeController(ScopeControllerBase):
                 yield from ScopeController.__flatten_dict(v, kprefixs + [k])
             else:
                 yield sep.join(kprefixs + [k]), v
+
+    def set_channels_number(self, number : int) -> None :
+        '''
+        Changes the number of channel input sections.
+        
+        :param number: The new number of sections that should be displayed.
+        '''
+        if number > MAXIMUM_CHANNEL_NUMBER or number < MINIMUM_CHANNEL_NUMBER or type(number) is not int:
+            raise ValueError(f'Invalid channel number: {number}. Must be integer between 1 and 10.')
+        previous_number = len(self.channels)
+        with self.blockParamChangeSignal():
+            if previous_number > number:
+                self.channels = self.channels[: number]
+                while previous_number > number:
+                    self.parameters.child('Channel %s' % previous_number).remove()
+                    previous_number -= 1
+                else: # If user asked for increase channel count:
+                    while previous_number < number: # While there are not enough:
+                        
+                        self.parameters.insertChild(self.parameters.child('Statistics'), Configure.new_channel(previous_number + 1, self.color_pattern[previous_number], ['None'], 0)) # Add one parameter corresponding to the new channel.
+                        self.channels.append(ScopePlotChannel('None', self.color_pattern[previous_number])) # Add one new PlotChannel object to the list.
+                        previous_number = len(self.channels) # Update the channel number for while loop.
+        self._win.parameterPane.setParameters(self.parameters, showTop = False)
+        self.update_fdr()
+        self._win.graphicsWidget.setup_plot(channels = self.channels)
 
     def get_fdr(self):
         """
@@ -211,23 +244,27 @@ class ScopeController(ScopeControllerBase):
 
         # fill up the selectable pull down menu for array ID
         child = self.parameters.child("Config").child("ArrayId")
-        child.setLimits(fdr_scalar)
+        with self.blockParamChangeSignal():
+            child.setLimits(fdr_scalar)
         if child.value() != 'None':
             self.set_arrayid(child.value())
-        
+
         # fill up the selectable pull down menu for x axes
         child = self.parameters.child("Config").child("X Axes")
-        child.setLimits(fdr)
+        with self.blockParamChangeSignal():
+            child.setLimits(fdr)
         if child.value() != 'None':
             self.set_xaxes(child.value())
                 
         child = self.parameters.child("Trigger").child("Data Time Field")
         # Preserve current value before updating limits
         current_value = child.value()
-        child.setLimits(fdr)
+        with self.blockParamChangeSignal():
+            child.setLimits(fdr)
         # Restore value if it's still valid
         if current_value != 'None' and current_value in fdr:
-            child.setValue(current_value)
+            with self.blockParamChangeSignal():
+                child.setValue(current_value)
         if child.value() != 'None':
             self._win.graphicsWidget.trigger.data_time_field = child.value()
         
@@ -235,19 +272,22 @@ class ScopeController(ScopeControllerBase):
             chan_name = "Channel %s" % (idx + 1)
             child = self.parameters.child(chan_name)
             c = child.child("Field")
-            c.setLimits(fdr)
+            with self.blockParamChangeSignal():
+                c.setLimits(fdr)
             if c.value() != 'None':
                 self.set_channel_data(chan_name, 'Field', c.value())
 
         child = self.parameters.child('Config').child('Extra Display Fields')
         # Preserve current values before updating limits
         current_values = child.value()
-        child.setLimits(fdr_all)
+        with self.blockParamChangeSignal():
+            child.setLimits(fdr_all)
         # Restore values that are still valid
         if current_values:
             valid_values = [v for v in current_values if v in fdr_all]
             if valid_values:
-                child.setValue(valid_values)
+                with self.blockParamChangeSignal():
+                    child.setValue(valid_values)
             
     def __failed_connection_callback(self, flag):
         """
@@ -270,9 +310,8 @@ class ScopeController(ScopeControllerBase):
                 self.start_plotting()                
             
     def connection_changed(self, state, msg):
-        for q in self.parameters.child("Acquisition").children():
-            if q.name() == 'PV status':
-                q.setValue(state)
+        with self.blockParamChangeSignal():
+            self.parameters.child("Acquisition", 'PV status').setValue(state)
 
         if state == 'Failed to connect':
             self.connection_timer_signal.sig.emit(False)
@@ -351,7 +390,7 @@ class ScopeController(ScopeControllerBase):
                             self.update_fdr()
                         else:
                             self.update_fdr(empty=True)
-                            
+
                         # Recalculate object size and readjust buffer size
                         # if PV name changed
                         self.auto_buffer_size = True
@@ -359,13 +398,14 @@ class ScopeController(ScopeControllerBase):
                         self.object_size = None
                     except Exception as e:
                         self.notify_warning('Failed to update PV: ' + (str(e)))
-                    
                 elif childName == "Acquisition.Start":
                     if data:
                         self.start_plotting()
                     else:
                         self.stop_plotting()
-                elif "Channel" in childName:
+                elif childName == 'Config.Channel count':
+                    self.set_channels_number(number = data)
+                elif 'Channel ' in childName:
                     chan, field = childName.split('.')
                     self.set_channel_data(chan, field, data)
                 elif childName == "Config.ArrayId":
@@ -416,7 +456,8 @@ class ScopeController(ScopeControllerBase):
         if self.buffer_unit == 'Objects':
             if self.object_size:
                 nobj = math.ceil(size / self.object_size)
-                self.parameters.child("Acquisition").child("Buffer (Objects)").setValue(nobj)
+                with self.blockParamChangeSignal():
+                    self.parameters.child("Acquisition").child("Buffer (Objects)").setValue(nobj)
                 self.__calc_buffer_size()
             else:
                 self._win.graphicsWidget.update_buffer(size)
@@ -434,7 +475,8 @@ class ScopeController(ScopeControllerBase):
 
         param = self.parameters.child("Acquisition").child("Buffer (%s)" % (self.buffer_unit))
         newname = "Buffer (%s)" % (name)
-        param.setName(newname)        
+        with self.blockParamChangeSignal():
+            param.setName(newname)
         self.buffer_unit = name
 
         #Update buffer size based on current number of samples
@@ -445,8 +487,8 @@ class ScopeController(ScopeControllerBase):
                 nobj = self.parameters.child("Acquisition").child("Buffer (Objects)").value()
                 if nobj == 0:
                     #default to 1 object
-                    self.parameters.child("Acquisition").child("Buffer (Objects)").setValue(1)
-
+                    with self.blockParamChangeSignal():
+                        self.parameters.child("Acquisition").child("Buffer (Objects)").setValue(1)
                 self.__calc_buffer_size()
 
     def set_object_size(self, size):
@@ -460,7 +502,7 @@ class ScopeController(ScopeControllerBase):
         
         self.object_size = size
         self.__calc_buffer_size()
-        
+
     def monitor_callback(self, data):
         # Calculate object size
         objlen = 0
@@ -470,7 +512,7 @@ class ScopeController(ScopeControllerBase):
             except:
                 pass
 
-        if not self.object_size and objlen > 0:
+        if objlen > 0:
             self.set_object_size(objlen)
 
             #Default buffer size to number of samples in an object
@@ -502,7 +544,8 @@ class ScopeController(ScopeControllerBase):
         
         try:                
             super().start_plotting()
-            self.parameters.child("Acquisition").child("Start").setValue(1)
+            with self.blockParamChangeSignal():
+                self.parameters.child("Acquisition").child("Start").setValue(1)
         except Exception as e:
             self.parameters.child("Acquisition").child("Start").setValue(0)
             self.notify_warning('Failed to start plotting: ' + str(e))
@@ -513,7 +556,8 @@ class ScopeController(ScopeControllerBase):
         :return:
         """
         super().stop_plotting()
-        self.parameters.child("Acquisition").child("Start").setValue(0)
+        with self.blockParamChangeSignal():
+            self.parameters.child("Acquisition").child("Start").setValue(0)
         # Stop data source
         self.model.stop()
 
@@ -578,6 +622,8 @@ class ScopeController(ScopeControllerBase):
         mo_location = self.parameters.child("Config", "MO Disp Location").value()
         if mo_location:
             serializer.set(Scope.MOUSE_OVER_DISPLAY_LOCATION, mo_location)
+
+        serializer.set(Scope.CHANNEL_COUNT, self.parameters.child('Config', 'Channel count').value())
 
         # Serialize channel configurations
         chan_cfgs = []

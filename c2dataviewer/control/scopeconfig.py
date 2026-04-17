@@ -3,6 +3,7 @@
 from .scope_config_base import ScopeConfigureBase
 import re
 from .config import Scope
+from typing import Any
 
 """
 C2 DATA VIEWER is distributed subject to a Software License Agreement found
@@ -17,6 +18,9 @@ PVA object viewer utilities
 @author: Guobao Shen <gshen@anl.gov>
 """
 
+MINIMUM_CHANNEL_NUMBER : int = 1
+DEFAULT_CHANNEL_NUMBER : int = 4
+MAXIMUM_CHANNEL_NUMBER : int = 10
 
 class Configure(ScopeConfigureBase):
     """
@@ -31,7 +35,6 @@ class Configure(ScopeConfigureBase):
         super().__init__(params, **kwargs)
         self.pvs = kwargs.get("pv", None)
 
-        self.counts = 4
         self.default_color = ['#FFFF00', '#FF00FF', '#55FF55', '#00FFFF', '#5555FF',
                               '#5500FF', '#FF5555', '#0000FF', '#FFAA00', '#000000']
         
@@ -42,7 +45,31 @@ class Configure(ScopeConfigureBase):
         if not self.default_xaxes:
             self.default_xaxes = self.params.get(Scope.XAXES, 'None')
         
-
+    def new_channel(number : int, color : str, field : list[str], dc_offset : float) -> dict[str, Any] : 
+        channel = {
+            'name' : 'Channel %s' % number,
+            'type' : 'group',
+            'children': [
+                {
+                    'name' : 'Color',
+                    'type' : 'color',
+                    'value' : color,
+                    'readonly' : True
+                },
+                {'name' : 'Field', 'type' : 'list', 'limits' : [field], 'value' : field},
+                {'name' : 'DC offset', 'type' : 'float', 'value' : dc_offset},
+                {
+                    'name' : 'Axis location',
+                    'type' : 'list',
+                    'limits' :
+                    {
+                        'Left' : 'left',
+                        'Right' : 'right',
+                    },
+                    'value' : 'Left'},
+            ]
+        }
+        return channel
         
     def assemble_channel(self, section=None):
         """
@@ -52,20 +79,15 @@ class Configure(ScopeConfigureBase):
         :return:
         """
         # get channel counts to display, 4 by default
-        self.counts = self.params.get(Scope.CHANNEL_COUNT, default=4)
+        self.counts = self.params.get(Scope.CHANNEL_COUNT, default = DEFAULT_CHANNEL_NUMBER)
         channel = []
 
         #Read channel information.  Channel order is
         #determined by order in config
         chan_cfgs = self.params.get_channel_config()
-        
-        if len(chan_cfgs) > self.counts:
-            self.counts = len(chan_cfgs)
 
-        if self.counts > 10:
-            # limit max channel to display
-            self.counts = 10
-
+        self.counts = max(self.counts, len(chan_cfgs))
+        self.counts = min(self.counts, MAXIMUM_CHANNEL_NUMBER)
         
         for i in range(self.counts):
             default_cfg = {
@@ -77,25 +99,7 @@ class Configure(ScopeConfigureBase):
             field = chcfg.get('field', default_cfg['field'])
             dcoffset = float(chcfg.get('dcoffset', default_cfg['dcoffset']))
 
-            channel.append(
-                {"name": "Channel %s" % (i + 1),
-                 "type": "group",
-                 "children": [
-                     {
-                         "name": "Color",
-                         "type": "color",
-                         "value": self.default_color[i],
-                         "readonly": True
-                     },
-                     {"name": "Field", "type": "list", "limits": [field], "value": field},
-                     {"name": "DC offset", "type": "float", "value": dcoffset},
-                     {"name": "Axis location", "type": "list", "limits": {
-                         "Left" : "left",
-                         "Right" : "right",
-                     }, "value" : "Left"},
-                 ]
-                 }
-            )
+            channel.append(Configure.new_channel(number = i + 1, color = self.default_color[i], field = field, dc_offset = dcoffset))
 
         return channel
 
@@ -134,7 +138,7 @@ class Configure(ScopeConfigureBase):
              "value": buffer_unit},
             {"name": "PV", "type": "str", "value": pv},
             {"name": "PV status", "type": "str", "value": "Disconnected", "readonly": True},
-            {"name": "Start", "type": "bool", "value": start}
+            {"name": "Start", "type": "bool", "value": start},
         ]
 
         children.extend(newchildren)
@@ -170,13 +174,13 @@ class Configure(ScopeConfigureBase):
                "type": "group",
                "expanded": True,
                "children": [
-                   {"name": "ArrayId", "type": "list", "limits": id_value, "value": self.default_arrayid},
-                   {"name": "X Axes", "type": "list", "limits": axes, "value": self.default_xaxes},
-                   {"name": "Major Ticks", "type": "int", "value": self.default_major_tick, 'decimals':20},
-                   {"name": "Minor Ticks", "type": "int", "value": self.default_minor_tick, 'decimals':20},
-                   {"name": "Extra Display Fields", "type": "checklist", "value": extra_fields, "limits": extra_fields, "expanded": False},
-                   {"name": "MO Disp Location", "type": "list", "limits": ['top-right', 'bottom-right', 'bottom-left'], "value": mo_display_loc}
-
+                    {"name": "ArrayId", "type": "list", "limits": id_value, "value": self.default_arrayid},
+                    {"name": "X Axes", "type": "list", "limits": axes, "value": self.default_xaxes},
+                    {"name": "Major Ticks", "type": "int", "value": self.default_major_tick, 'decimals':20},
+                    {"name": "Minor Ticks", "type": "int", "value": self.default_minor_tick, 'decimals':20},
+                    {"name": "Extra Display Fields", "type": "checklist", "value": extra_fields, "limits": extra_fields, "expanded": False},
+                    {"name": "MO Disp Location", "type": "list", "limits": ['top-right', 'bottom-right', 'bottom-left'], "value": mo_display_loc},
+                    {'name' : 'Channel count', 'type' : 'int', 'value' : self.counts, 'limits' : [1, 10]},
                    ]
                }
         return cfg
@@ -187,9 +191,9 @@ class Configure(ScopeConfigureBase):
         :return:
         """
         
-        acquisition = self.assemble_acquisition()
         display = self.assemble_display()
         channel = self.assemble_channel()
+        acquisition = self.assemble_acquisition()
         trigger = self.assemble_trigger()
         cfg = self.assemble_config()
 
