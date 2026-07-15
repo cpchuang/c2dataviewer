@@ -21,20 +21,27 @@ import pyqtgraph as pg
 from pyqtgraph import QtCore
 from pyqtgraph.Qt import QtWidgets
 from pyqtgraph.widgets.RawImageWidget import RawImageWidget
-# We attempt to import modules needed for compressed images
-# and ignore errors if they are not there
+# We attempt to import modules needed for compressed images. These are
+# optional: if a module is missing OR fails to load (e.g. a broken build or a
+# numpy ABI mismatch, which raises ValueError rather than ImportError), the
+# corresponding codec is simply unavailable. The decompress helpers below raise
+# a clear error only if an image actually using that codec arrives, so a broken
+# optional dependency must not prevent the application from starting.
 try:
     import blosc
-except ImportError:
-    pass
+except Exception as ex:
+    logging.getLogger(__name__).warning(
+        'blosc unavailable; blosc-compressed images will not decode: %s', ex)
 try:
     import lz4.block
-except ImportError:
-    pass
+except Exception as ex:
+    logging.getLogger(__name__).warning(
+        'lz4 unavailable; lz4-compressed images will not decode: %s', ex)
 try:
     import bitshuffle
-except ImportError:
-    pass
+except Exception as ex:
+    logging.getLogger(__name__).warning(
+        'bitshuffle unavailable; bslz4-compressed images will not decode: %s', ex)
 
 import pvaccess as pva
 
