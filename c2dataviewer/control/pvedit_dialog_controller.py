@@ -6,8 +6,8 @@ SPDX-License-Identifier: EPICS
 
 import pyqtgraph
 import random
-from PyQt5 import QtWidgets
-from PyQt5 import QtCore
+from pyqtgraph.Qt import QtWidgets
+from pyqtgraph.Qt import QtCore
 from .pvconfig import PvConfig
 
 def make_color_tuple(c):
@@ -30,8 +30,8 @@ class PvEditDialogController:
         self._model = model
         
         self._win.addPvButton.clicked.connect(self._on_addpv_click)
-        self._win.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(self._on_cancel)
-        self._win.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(self._on_ok)
+        self._win.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).clicked.connect(self._on_cancel)
+        self._win.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).clicked.connect(self._on_ok)
 
         self.callback = None
         self.protocol_list = None
@@ -102,7 +102,7 @@ class PvEditDialogController:
         
     def show(self, pvlist):
         self._set_pvlist(pvlist)
-        self._win.exec_()
+        self._win.exec()
 
     def _set_pvlist(self, pvlist):
         self._win.pvTableWidget.clearContents()

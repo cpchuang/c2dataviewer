@@ -10,7 +10,7 @@ import pvaccess as pva
 from ..model import ConnectionState
 import math
 from .config import Scope
-from PyQt5 import QtWidgets
+from pyqtgraph.Qt import QtWidgets
 from pyqtgraph import functions as fn
 
 class ScopeControllerBase:

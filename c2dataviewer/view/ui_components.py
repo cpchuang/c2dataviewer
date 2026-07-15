@@ -11,9 +11,9 @@ Copyright 2018 UChicago Argonne LLC
 Various custom UI components.
 """
 import pyqtgraph as pg
-from PyQt5.QtCore import QRect, Qt
-from PyQt5.QtGui import QPainter, QBrush, QPalette, QPen
-from PyQt5.QtWidgets import QRubberBand, QWidget
+from pyqtgraph.Qt.QtCore import QRect, Qt
+from pyqtgraph.Qt.QtGui import QPainter, QBrush, QPalette, QPen
+from pyqtgraph.Qt.QtWidgets import QRubberBand, QWidget
 
 class TransparentRubberBand(QRubberBand):
     def __init__(self, shape, parent):
@@ -21,11 +21,11 @@ class TransparentRubberBand(QRubberBand):
 
     def paintEvent(self, event):
         pal = QPalette()
-        pal.setBrush(QPalette.Highlight, QBrush(Qt.black))
+        pal.setBrush(QPalette.ColorRole.Highlight, QBrush(Qt.GlobalColor.black))
         self.setPalette(pal)
         pen = QPen()
-        pen.setStyle(Qt.DashLine)
-        pen.setColor(Qt.darkGreen)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setColor(Qt.GlobalColor.darkGreen)
         pen.setWidth(2)
         painter = QPainter(self)
         painter.setOpacity(1)
@@ -45,11 +45,11 @@ class RoiMidLines(QWidget):
 
     def paintEvent(self, event):
         pal = QPalette()
-        pal.setBrush(QPalette.Highlight, QBrush(Qt.black))
+        pal.setBrush(QPalette.ColorRole.Highlight, QBrush(Qt.GlobalColor.black))
         self.setPalette(pal)
         pen = QPen()
-        pen.setStyle(Qt.DashLine)
-        pen.setColor(Qt.darkGreen)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setColor(Qt.GlobalColor.darkGreen)
         pen.setWidth(2)
         painter = QPainter(self)
         painter.setPen(pen)

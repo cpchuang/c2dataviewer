@@ -64,15 +64,17 @@ class ImageProfileWidget(object):
         self._x_axis_min = 0
         self._x_axis_max = 0
 
-        plot_x_size_policy = pg.Qt.QtWidgets.QSizePolicy(pg.Qt.QtWidgets.QSizePolicy.Fixed, pg.Qt.QtWidgets.QSizePolicy.Fixed)
+        plot_x_size_policy = pg.Qt.QtWidgets.QSizePolicy(pg.Qt.QtWidgets.QSizePolicy.Policy.Fixed, pg.Qt.QtWidgets.QSizePolicy.Policy.Fixed)
         plot_x_size_policy.setHeightForWidth(self._plot_x_profile.widget().sizePolicy().hasHeightForWidth())
         self._plot_x_profile.widget().setSizePolicy(plot_x_size_policy)
+        self._plot_x_profile.widget().getPlotItem().getViewBox().setDefaultPadding(0)
+        self._plot_x_profile.widget().getPlotItem().setContentsMargins(0, 0, 0, 0)
 
         self._profile_x_curves = {
-            'mono'  : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(255,255,255), style=pg.Qt.QtCore.Qt.SolidLine)),
-            'red'   : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(255,  0,  0), style=pg.Qt.QtCore.Qt.SolidLine)),
-            'green' : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(  0,255,  0), style=pg.Qt.QtCore.Qt.DashLine)),
-            'blue'  : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(  0,255,255), style=pg.Qt.QtCore.Qt.DashDotLine)),
+            'mono'  : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(255,255,255), style=pg.Qt.QtCore.Qt.PenStyle.SolidLine)),
+            'red'   : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(255,  0,  0), style=pg.Qt.QtCore.Qt.PenStyle.SolidLine)),
+            'green' : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(  0,255,  0), style=pg.Qt.QtCore.Qt.PenStyle.DashLine)),
+            'blue'  : self._plot_x_profile.widget().plot(pen=pg.mkPen(color=(  0,255,255), style=pg.Qt.QtCore.Qt.PenStyle.DashDotLine)),
         }
 
         # Build the Y profile graph widget
@@ -83,15 +85,17 @@ class ImageProfileWidget(object):
         self._y_axis_min = 0
         self._y_axis_max = 0
 
-        plot_y_size_policy = pg.Qt.QtWidgets.QSizePolicy(pg.Qt.QtWidgets.QSizePolicy.Fixed, pg.Qt.QtWidgets.QSizePolicy.Fixed)
+        plot_y_size_policy = pg.Qt.QtWidgets.QSizePolicy(pg.Qt.QtWidgets.QSizePolicy.Policy.Fixed, pg.Qt.QtWidgets.QSizePolicy.Policy.Fixed)
         plot_y_size_policy.setHeightForWidth(self._plot_y_profile.widget().sizePolicy().hasHeightForWidth())
         self._plot_y_profile.widget().setSizePolicy(plot_y_size_policy)
+        self._plot_y_profile.widget().getPlotItem().getViewBox().setDefaultPadding(0)
+        self._plot_y_profile.widget().getPlotItem().setContentsMargins(0, 0, 0, 0)
 
         self._profile_y_curves = {
-            'mono'  : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(255,255,255), style=pg.Qt.QtCore.Qt.SolidLine)),
-            'red'   : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(255,  0,  0), style=pg.Qt.QtCore.Qt.SolidLine)),
-            'green' : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(  0,255,  0), style=pg.Qt.QtCore.Qt.DashLine)),
-            'blue'  : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(  0,255,255), style=pg.Qt.QtCore.Qt.DashDotLine)),
+            'mono'  : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(255,255,255), style=pg.Qt.QtCore.Qt.PenStyle.SolidLine)),
+            'red'   : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(255,  0,  0), style=pg.Qt.QtCore.Qt.PenStyle.SolidLine)),
+            'green' : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(  0,255,  0), style=pg.Qt.QtCore.Qt.PenStyle.DashLine)),
+            'blue'  : self._plot_y_profile.widget().plot(pen=pg.mkPen(color=(  0,255,255), style=pg.Qt.QtCore.Qt.PenStyle.DashDotLine)),
         }
 
         transform = pg.QtGui.QTransform()
@@ -148,16 +152,16 @@ class ImageProfileWidget(object):
 
         self._plot_y_profile.widget().setMinimumHeight(int(display_height))
         self._plot_y_profile.widget().setMaximumHeight(int(display_height))
-        self._plot_x_profile.widget().setMaximumWidth(self._max_y_profile_width)
+        self._plot_y_profile.widget().setMaximumWidth(self._max_y_profile_width)
 
         if self._x_axis_max:
-            self._plot_x_profile.widget().getPlotItem().getAxis('bottom').setRange(self._x_axis_min,self._x_axis_max)
+            self._plot_x_profile.widget().setXRange(self._x_axis_min, self._x_axis_max, padding=0)
         else:
-            self._plot_x_profile.widget().getPlotItem().getAxis('bottom').setRange(0, self._nx)
+            self._plot_x_profile.widget().setXRange(0, self._nx, padding=0)
         if self._y_axis_max:
-            self._plot_y_profile.widget().getPlotItem().getAxis('right').setRange(self._y_axis_max,self._y_axis_min)
+            self._plot_y_profile.widget().setYRange(-self._y_axis_max, -self._y_axis_min, padding=0)
         else:
-            self._plot_y_profile.widget().getPlotItem().getAxis('right').setRange(self._ny, 0)
+            self._plot_y_profile.widget().setYRange(-self._ny, 0, padding=0)
 
         if not self._display_profiles:
             self._plot_x_profile.widget().setMaximumHeight(0)
@@ -171,47 +175,55 @@ class ImageProfileWidget(object):
         # Calculate profiles
         x_profile, y_profile =  self._x_profile, self._y_profile
 
+        # Build x-coordinate arrays so profiles align with the image region
+        x_axis_start = self._x_axis_min if self._x_axis_max else 0
+        y_axis_start = self._y_axis_min if self._y_axis_max else 0
+
         # Draw X profile curves
         self._data_mutex.lock()
         if type(x_profile) is list:
+            x_coords = np.arange(len(x_profile[0])) + x_axis_start
             for mode, curve in self._profile_x_curves.items():
                 if mode == 'red':
-                    curve.setData(x_profile[0])
+                    curve.setData(x_coords, x_profile[0])
                     curve.show()
                 elif mode == 'green':
-                    curve.setData(x_profile[1])
+                    curve.setData(x_coords, x_profile[1])
                     curve.show()
                 elif mode == 'blue':
-                    curve.setData(x_profile[2])
+                    curve.setData(x_coords, x_profile[2])
                     curve.show()
                 else:
                     curve.hide()
         else:
+            x_coords = np.arange(len(x_profile)) + x_axis_start
             for mode, curve in self._profile_x_curves.items():
                 if mode == 'mono':
-                    curve.setData(x_profile)
+                    curve.setData(x_coords, x_profile)
                     curve.show()
                 else:
                     curve.hide()
 
         # Draw Y profile curves
         if type(y_profile) is list:
+            y_coords = np.arange(len(y_profile[0])) + y_axis_start
             for mode, curve in self._profile_y_curves.items():
                 if mode == 'red':
-                    curve.setData(y_profile[0])
+                    curve.setData(y_coords, y_profile[0])
                     curve.show()
                 elif mode == 'green':
-                    curve.setData(y_profile[1])
+                    curve.setData(y_coords, y_profile[1])
                     curve.show()
                 elif mode == 'blue':
-                    curve.setData(y_profile[2])
+                    curve.setData(y_coords, y_profile[2])
                     curve.show()
                 else:
                     curve.hide()
         else:
+            y_coords = np.arange(len(y_profile)) + y_axis_start
             for mode, curve in self._profile_y_curves.items():
                 if mode == 'mono':
-                    curve.setData(y_profile)
+                    curve.setData(y_coords, y_profile)
                     curve.show()
                 else:
                     curve.hide()
@@ -281,8 +293,8 @@ class ImageProfileWidget(object):
         if displayWidget:
             self._grid.removeItem(self._image_widget)
             self._grid.addItem(self._image_widget, 1, 1)
-            self._grid.addItem(self._plot_x_profile, 0, 1, 1, 1, pg.Qt.QtCore.Qt.AlignLeft | pg.Qt.QtCore.Qt.AlignBottom)
-            self._grid.addItem(self._plot_y_profile, 1, 0, 1, 1, pg.Qt.QtCore.Qt.AlignRight | pg.Qt.QtCore.Qt.AlignTop)
+            self._grid.addItem(self._plot_x_profile, 0, 1, 1, 1, pg.Qt.QtCore.Qt.AlignmentFlag.AlignLeft | pg.Qt.QtCore.Qt.AlignmentFlag.AlignBottom)
+            self._grid.addItem(self._plot_y_profile, 1, 0, 1, 1, pg.Qt.QtCore.Qt.AlignmentFlag.AlignRight | pg.Qt.QtCore.Qt.AlignmentFlag.AlignTop)
             self._plot_x_profile.widget().show()
             self._plot_y_profile.widget().show()
             self._display_widget = True

@@ -80,6 +80,6 @@ def scope(cfg, **kwargs):
 
     w.show()
     try:
-        app.exec_()
+        app.exec()
     finally:
         controller.stop_plotting()

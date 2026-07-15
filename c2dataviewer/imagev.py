@@ -124,4 +124,4 @@ def imagev(pv, scale=None, noAGC=True):
         warning.warningConfirmButton.clicked.connect(warning.close)
 
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

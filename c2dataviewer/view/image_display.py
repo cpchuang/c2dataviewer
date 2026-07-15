@@ -245,7 +245,7 @@ class ImagePlotWidget(RawImageWidget):
             'width': 0,
             'height': 0,
         }
-        self.right_button_pressed = False
+        self.left_button_pressed = False
         self.is_image_panning = False
 
         # Limit control to avoid overflow network for best performance
@@ -332,9 +332,9 @@ class ImagePlotWidget(RawImageWidget):
             self.roi_mid_lines = None
         self.roi_mode = roi_mode
         if not roi_mode:
-            self.__zoomSelectionIndicator = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Rectangle, self)
+            self.__zoomSelectionIndicator = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
         else:
-            self.__zoomSelectionIndicator = TransparentRubberBand(QtWidgets.QRubberBand.Rectangle, self)
+            self.__zoomSelectionIndicator = TransparentRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
 
     def resizeEvent(self, event):
         """
@@ -357,28 +357,26 @@ class ImagePlotWidget(RawImageWidget):
         click_position = event.pos()
         self.click_x = click_position.x()
         self.click_y = click_position.y()
-        
-        # Only triggered is left mouse button clicked 
-        if event.button() == QtCore.Qt.LeftButton:
+
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.left_button_pressed = True
+        elif event.button() == QtCore.Qt.MouseButton.RightButton:
             # Return if there is no image data
             if not self.x or not self.y:
                 return
-            
+
             # Check if the press happened on the image
             img_width, img_height, _ = self.calc_img_size_on_screen()
             if (self.click_x > img_width or self.click_y > img_height):
                 return
 
-            # Mouse buttom was pressed on the image. We start panning.
+            # Start zoom/ROI selection
             self.roi_origin = click_position
             self.__zoomSelectionIndicator.setGeometry(QtCore.QRect(self.roi_origin, QtCore.QSize()))
             self.__zoomSelectionIndicator.show()
             if self.roi_mode and self.roi_mid_lines:
                 self.roi_mid_lines.hide()
                 self.roi_mid_lines = None
-        elif event.button() == QtCore.Qt.RightButton:
-            # Flag to indicate click occured
-            self.right_button_pressed = True
 
     def mouseMoveEvent(self, event):
         """
@@ -390,12 +388,12 @@ class ImagePlotWidget(RawImageWidget):
         if self.mouse_dialog.mouse_dialog_enabled:
             self.updateMouseDialog(event)
 
-        # panning zoomed image window
-        if self.is_zoomed() and self.right_button_pressed:
+        # panning zoomed image window with left button
+        if self.is_zoomed() and self.left_button_pressed:
             self.is_image_panning = True
             self.pan_zoom_window(event)
 
-        # Mouse is moving, while selecting roi. Redraw the selection rectangle.
+        # Mouse is moving while selecting zoom/roi with right button. Redraw the selection rectangle.
         if self.roi_origin is not None:
             self.__zoomSelectionIndicator.setGeometry(
                 QtCore.QRect(self.roi_origin, event.pos()).normalized())
@@ -407,67 +405,76 @@ class ImagePlotWidget(RawImageWidget):
         :param event: (QMouseEvent) Parameter holding event details.
         :return: (None)
         """
-        # Trigger context menu when not panning
-        if event.button() == QtCore.Qt.RightButton:
-            self.right_button_pressed = False
-            if not self.is_image_panning:
-                self.right_button_clicked_signal.emit(event.pos())
+        # Left button release: stop panning
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.left_button_pressed = False
             self.is_image_panning = False
 
-        if self.roi_origin is None:
-            return
+        # Right button release: context menu (no drag) or zoom/ROI selection (drag)
+        if event.button() == QtCore.Qt.MouseButton.RightButton:
+            if self.roi_origin is None:
+                return
 
-        # Get information about the widget dimensions
-        panEnd = QtCore.QPoint(event.pos())
-        imageGeometry = self.geometry().getRect()
-        widget_width = imageGeometry[2]
-        widget_hight = imageGeometry[3]
+            panEnd = QtCore.QPoint(event.pos())
 
-        # Calculate x parameters, x min/max and size in pixels
-        xmin = self.roi_origin.x()
-        xmax = panEnd.x()
-        if xmin > xmax:
-            xmax, xmin = xmin, xmax
-        if xmin < 0:
-            xmin = 0
-        if xmax > widget_width:
-            xmax = widget_width
+            # If drag distance is tiny, treat as a right-click for context menu
+            dx = abs(panEnd.x() - self.roi_origin.x())
+            dy = abs(panEnd.y() - self.roi_origin.y())
+            if dx < 4 and dy < 4:
+                self.roi_origin = None
+                self.__zoomSelectionIndicator.hide()
+                self.right_button_clicked_signal.emit(event.pos())
+                return
 
-        # Calculate y parameters, y min/max and size in pixels
-        ymin = self.roi_origin.y()
-        ymax = panEnd.y()
-        if ymin > ymax:
-            ymax, ymin = ymin, ymax
-        if ymin < 0:
-            ymin = 0
-        if ymax > widget_hight:
-            ymax = widget_hight
+            # Get information about the widget dimensions
+            imageGeometry = self.geometry().getRect()
+            widget_width = imageGeometry[2]
+            widget_hight = imageGeometry[3]
 
-        self.roi_origin = None
+            # Calculate x parameters, x min/max and size in pixels
+            xmin = self.roi_origin.x()
+            xmax = panEnd.x()
+            if xmin > xmax:
+                xmax, xmin = xmin, xmax
+            if xmin < 0:
+                xmin = 0
+            if xmax > widget_width:
+                xmax = widget_width
 
-        if self.roi_mode:
-            if self.rulers_displayed:
-                # Draw mid lines from ROI rectangle towards rulers
-                xleft = xmin
-                yleft = (ymin+ymax)/2.0
-                xtop = (xmin+xmax)/2.0
-                ytop = ymin
-                self.roi_mid_lines = RoiMidLines(xleft, yleft, xtop, ytop, self)
+            # Calculate y parameters, y min/max and size in pixels
+            ymin = self.roi_origin.y()
+            ymax = panEnd.y()
+            if ymin > ymax:
+                ymax, ymin = ymin, ymax
+            if ymin < 0:
+                ymin = 0
+            if ymax > widget_hight:
+                ymax = widget_hight
 
-                # Use image geometry for the ROI lines
-                w = self.width()
-                h = self.height()
-                rectangle = QtCore.QRect(0, 0, w, h)
-                self.roi_mid_lines.setGeometry(rectangle)
-                self.roi_mid_lines.show()
-            return
+            self.roi_origin = None
 
-        # We made the roi selection
-        # Hide selection rectangle
-        self.__zoomSelectionIndicator.hide()
+            if self.roi_mode:
+                if self.rulers_displayed:
+                    # Draw mid lines from ROI rectangle towards rulers
+                    xleft = xmin
+                    yleft = (ymin+ymax)/2.0
+                    xtop = (xmin+xmax)/2.0
+                    ytop = ymin
+                    self.roi_mid_lines = RoiMidLines(xleft, yleft, xtop, ytop, self)
 
-        # Calculate zoomed image parameters
-        self.__calculateZoomParameters(xmin, xmax, ymin, ymax)
+                    # Use image geometry for the ROI lines
+                    w = self.width()
+                    h = self.height()
+                    rectangle = QtCore.QRect(0, 0, w, h)
+                    self.roi_mid_lines.setGeometry(rectangle)
+                    self.roi_mid_lines.show()
+                return
+
+            # Hide selection rectangle
+            self.__zoomSelectionIndicator.hide()
+
+            # Calculate zoomed image parameters
+            self.__calculateZoomParameters(xmin, xmax, ymin, ymax)
     
     def wheelEvent(self, event):
         """
@@ -478,8 +485,8 @@ class ImagePlotWidget(RawImageWidget):
         :return: (None)
         """
         # Calculate the position of the mouse cursor relative to the widget
-        mouse_x = event.x()
-        mouse_y = event.y()
+        mouse_x = event.position().x()
+        mouse_y = event.position().y()
 
         # Get current zoom parameters
         xOffset, yOffset, width, height = self.get_zoom_region()
@@ -790,9 +797,16 @@ class ImagePlotWidget(RawImageWidget):
         # Get zoom parameters
         xOffset, yOffset, width, height = self.get_zoom_region()
 
-        # Calculate new offset coordinates for zoom window
-        new_x = int(new_mouse_position.x()//pixel_size) - int(self.click_x//pixel_size) + xOffset
-        new_y = int(new_mouse_position.y()//pixel_size) - int(self.click_y//pixel_size) + yOffset
+        # Calculate incremental delta since last event
+        dx = int(self.click_x//pixel_size) - int(new_mouse_position.x()//pixel_size)
+        dy = int(self.click_y//pixel_size) - int(new_mouse_position.y()//pixel_size)
+
+        # Update anchor to current position for next event
+        self.click_x = new_mouse_position.x()
+        self.click_y = new_mouse_position.y()
+
+        new_x = xOffset + dx
+        new_y = yOffset + dy
         if new_x < 0:
             new_x = 0
         elif new_x > self.x - width:

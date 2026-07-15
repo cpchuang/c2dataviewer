@@ -18,7 +18,7 @@ from pyqtgraph import QtCore
 import time
 from pyqtgraph.functions import mkPen
 from pyqtgraph import PlotWidget
-from PyQt5 import QtWidgets
+from pyqtgraph.Qt import QtGui, QtWidgets
 
 from ..view.image_definitions import COLOR_MODE_MONO, COLOR_MODES
 from ..model import ConnectionState
@@ -56,7 +56,7 @@ class ImageController:
         self.datareceiver = kargs.get('data', None)
 
         self._win.pvPrefix.setEditable(True)
-        self._win.pvPrefix.setInsertPolicy(Qt.QtWidgets.QComboBox.InsertAtBottom)
+        self._win.pvPrefix.setInsertPolicy(Qt.QtWidgets.QComboBox.InsertPolicy.InsertAtBottom)
         if cameras is not None:
             self._win.pvPrefix.addItems(cameras)
         self._win.pvPrefix.currentIndexChanged.connect(self.camera_changed)
@@ -197,14 +197,14 @@ class ImageController:
         self.camera_changed()
 
         self._imageContextMenu = QtWidgets.QMenu(self._win.imageWidget)
-        self._imageContextMenuAction = QtWidgets.QAction(self.HIDE_CONTROL_TEXT, self._win.imageWidget)
+        self._imageContextMenuAction = QtGui.QAction(self.HIDE_CONTROL_TEXT, self._win.imageWidget)
         self._imageContextMenu.addAction(self._imageContextMenuAction)
 
-        self._imageXY_IntensityDialogAction = QtWidgets.QAction(self.SHOW_XY_INTENSITY_TEXT, self._win.imageWidget)
+        self._imageXY_IntensityDialogAction = QtGui.QAction(self.SHOW_XY_INTENSITY_TEXT, self._win.imageWidget)
         self._imageContextMenu.addAction(self._imageXY_IntensityDialogAction)
-        self._imageResetZoomAction = QtWidgets.QAction(self.RESET_ZOOM_TEXT, self._win.imageWidget)
+        self._imageResetZoomAction = QtGui.QAction(self.RESET_ZOOM_TEXT, self._win.imageWidget)
         self._imageContextMenu.addAction(self._imageResetZoomAction)
-        self._imageRoiModeAction = QtWidgets.QAction(self.ENABLE_ROI_MODE_TEXT, self._win.imageWidget)
+        self._imageRoiModeAction = QtGui.QAction(self.ENABLE_ROI_MODE_TEXT, self._win.imageWidget)
         self._imageContextMenu.addAction(self._imageRoiModeAction)
         
         self._win.imageWidget.right_button_clicked_signal.connect(lambda point: self.on_context_menu(point))
@@ -213,7 +213,7 @@ class ImageController:
 
     def on_context_menu(self, point):
         # show context menu
-        action = self._imageContextMenu.exec_(self._win.imageWidget.mapToGlobal(point))
+        action = self._imageContextMenu.exec(self._win.imageWidget.mapToGlobal(point))
         if not action:
             return
         if action.text() == self.HIDE_CONTROL_TEXT:
@@ -424,7 +424,7 @@ class ImageController:
         self._image_settings_dialog.sbServerQueueSize.setValue(self._win.imageWidget.get_preferences()['ServerQueueSize'])
 
         # Launch the dialog
-        self._image_settings_dialog.exec_()
+        self._image_settings_dialog.exec()
 
 
     def _callback_accept_new_image_settings(self):

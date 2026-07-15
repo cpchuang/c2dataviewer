@@ -8,7 +8,7 @@ import logging
 import pyqtgraph
 from  .pvedit_dialog_controller import PvEditDialogController
 import random
-from PyQt5 import QtGui
+from pyqtgraph.Qt import QtGui
 from ..model import ConnectionState
 import pvaccess as pva
 from ..view import *
