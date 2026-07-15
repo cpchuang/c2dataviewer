@@ -189,29 +189,47 @@
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="QLabel" name="lblXsize">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>150</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="frameShape">
-                 <enum>QFrame::Box</enum>
-                </property>
-                <property name="frameShadow">
-                 <enum>QFrame::Sunken</enum>
-                </property>
-               </widget>
+               <layout class="QHBoxLayout" name="hboxXsize">
+                <item>
+                 <widget class="QLabel" name="lblXsize">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>55</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="frameShape">
+                   <enum>QFrame::Box</enum>
+                  </property>
+                  <property name="frameShadow">
+                   <enum>QFrame::Sunken</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="sbXwindow">
+                  <property name="toolTip">
+                   <string>ROI window size (X). Type a value and press Enter to zoom.</string>
+                  </property>
+                  <property name="maximum">
+                   <number>1000000</number>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="sbXstart">
+                  <property name="toolTip">
+                   <string>ROI start pixel (X). Type a value and press Enter to move the ROI.</string>
+                  </property>
+                  <property name="maximum">
+                   <number>1000000</number>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
               <item row="2" column="0">
                <widget class="QLabel" name="label_5">
@@ -221,29 +239,47 @@
                </widget>
               </item>
               <item row="2" column="1">
-               <widget class="QLabel" name="lblYsize">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>150</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="frameShape">
-                 <enum>QFrame::Box</enum>
-                </property>
-                <property name="frameShadow">
-                 <enum>QFrame::Sunken</enum>
-                </property>
-               </widget>
+               <layout class="QHBoxLayout" name="hboxYsize">
+                <item>
+                 <widget class="QLabel" name="lblYsize">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>55</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="frameShape">
+                   <enum>QFrame::Box</enum>
+                  </property>
+                  <property name="frameShadow">
+                   <enum>QFrame::Sunken</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="sbYwindow">
+                  <property name="toolTip">
+                   <string>ROI window size (Y). Type a value and press Enter to zoom.</string>
+                  </property>
+                  <property name="maximum">
+                   <number>1000000</number>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="sbYstart">
+                  <property name="toolTip">
+                   <string>ROI start pixel (Y). Type a value and press Enter to move the ROI.</string>
+                  </property>
+                  <property name="maximum">
+                   <number>1000000</number>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
               <item row="3" column="1">
                <widget class="QPushButton" name="resetZoomButton">
@@ -320,7 +356,17 @@
                 </property>
                </widget>
               </item>
-              <item row="8" column="0" colspan="2">
+              <item row="8" column="0">
+               <widget class="QLabel" name="lblColormap">
+                <property name="text">
+                 <string>Colormap:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="1">
+               <widget class="QComboBox" name="colormapComboBox"/>
+              </item>
+              <item row="9" column="0" colspan="2">
                <widget class="QLabel" name="movingAverageLabel">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -333,7 +379,7 @@
                 </property>
                </widget>
               </item>
-              <item row="9" column="0" colspan="2">
+              <item row="10" column="0" colspan="2">
                <widget class="QCheckBox" name="cbEnableMovingAverage">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -352,21 +398,21 @@
                 </property>
                </widget>
               </item>
-              <item row="10" column="0">
+              <item row="11" column="0">
                <widget class="QLabel" name="lblMovingAverageFrames">
                 <property name="text">
                  <string>MA Frames: </string>
                 </property>
                </widget>
               </item>
-              <item row="10" column="1">
+              <item row="11" column="1">
                <widget class="QSpinBox" name="sbMovingAverageFrames">
                 <property name="suffix">
                  <string notr="true"/>
                 </property>
                </widget>
               </item>
-              <item row="11" column="0" colspan="2">
+              <item row="12" column="0" colspan="2">
                <widget class="QLabel" name="lblProfilesSpacer">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -379,7 +425,7 @@
                 </property>
                </widget>
               </item>
-              <item row="12" column="0" colspan="2">
+              <item row="13" column="0" colspan="2">
                <widget class="QCheckBox" name="cbShowProfiles">
                 <property name="enabled">
                  <bool>true</bool>
@@ -389,7 +435,7 @@
                 </property>
                </widget>
               </item>
-              <item row="13" column="0" colspan="2">
+              <item row="14" column="0" colspan="2">
                <widget class="QCheckBox" name="cbShowRulers">
                 <property name="enabled">
                  <bool>true</bool>

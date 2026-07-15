@@ -13,6 +13,7 @@ PVA object viewer utilities
 @author: Guobao Shen <gshen@anl.gov>
 """
 import datetime
+import pyqtgraph as pg
 from pyqtgraph import Qt
 from pyqtgraph import QtCore
 import time
@@ -69,9 +70,22 @@ class ImageController:
         self._inputTypeDefaultStyle = self._win.tbValidInput.styleSheet()
 
         # Image and zoom
-        self._win.lblXsize.setToolTip("Number of pixels image has in X direction. \nIf ROI is selected, numbers in parentheses \nshow the size and range of displayed pixels.")
-        self._win.lblYsize.setToolTip("Number of pixels image has in Y direction. \nIf ROI is selected, numbers in parentheses \nshow the size and range of displayed pixels.")
+        self._win.lblXsize.setToolTip("Number of pixels image has in X direction.")
+        self._win.lblYsize.setToolTip("Number of pixels image has in Y direction.")
         self._win.resetZoomButton.clicked.connect(lambda: self._callback_reset_zoom_button())
+
+        # Manual ROI entry (window size and start pixel for X and Y).
+        # editingFinished fires on Enter / focus-out only, so we don't re-zoom
+        # while the user is still typing.
+        self._zoom_spinboxes = (self._win.sbXwindow, self._win.sbXstart,
+                                self._win.sbYwindow, self._win.sbYstart)
+        for sb in self._zoom_spinboxes:
+            sb.editingFinished.connect(lambda: self._callback_zoom_region_edited())
+        # Refresh the spin boxes immediately whenever the zoom region changes via
+        # the mouse (draw / pan / wheel) or reset, without waiting for the 1 Hz
+        # statistics timer.
+        self._win.imageWidget.zoom_region_changed_signal.connect(
+            lambda: self._sync_zoom_spinboxes())
 
         # Black control
         self._win.imageBlackSlider.valueChanged.connect(lambda: self._callback_black_changed_slider())
@@ -136,7 +150,7 @@ class ImageController:
         # Frame DAQ control
         self._framerates = {'1 Hz': 1, '2 Hz': 2, '5 Hz': 5, '10 Hz': 10, '20 Hz': 20, '30 Hz': 30, 'Full IOC Rate': -1} #Full IOC rate must be on the last place
         self._win.iocRate.addItems(self._framerates.keys())
-        self._win.iocRate.setCurrentIndex(2)
+        self._win.iocRate.setCurrentIndex(0)
         self.frameRateChanged()
         self._win.iocRate.currentIndexChanged.connect(lambda: self.frameRateChanged())
         self._win.freeze.stateChanged.connect(lambda: self._callback_freeze_changed())
@@ -192,6 +206,11 @@ class ImageController:
         self._win.cbShowRulers.stateChanged.connect(self._callback_profiles_show_changed)
         self._win.cbEnableMovingAverage.stateChanged.connect(self._callback_enable_moving_average_changed)
         self._win.sbMovingAverageFrames.textChanged.connect(self._callback_enable_moving_average_changed)
+
+        colormap_names = ['Grayscale'] + sorted(
+            name for name in pg.colormap.listMaps() if not name.startswith('CET-'))
+        self._win.colormapComboBox.addItems(colormap_names)
+        self._win.colormapComboBox.currentIndexChanged.connect(self._callback_colormap_changed)
 
         self.frameRateChanged()
         self.camera_changed()
@@ -314,6 +333,58 @@ class ImageController:
         """
         self._win.imageWidget.reset_zoom()
 
+    def _sync_zoom_spinboxes(self, force=False):
+        """
+        Refresh the ROI window-size / start-pixel spin boxes from the current
+        zoom region. Called periodically from updateStatus so the boxes track
+        mouse-driven zoom (draw / pan / wheel / reset).
+
+        While the user is editing a box (it has focus) the boxes are left alone
+        so periodic updates do not clobber typing, unless force is True.
+
+        :param force: (bool) Update even if a spin box currently has focus.
+        :return:
+        """
+        iw = self._win.imageWidget
+        if not iw.x or not iw.y:
+            return
+        if not force and any(sb.hasFocus() for sb in self._zoom_spinboxes):
+            return
+
+        xOffset, yOffset, width, height = iw.get_zoom_region()
+        # (spinbox, minimum, maximum, value)
+        settings = (
+            (self._win.sbXwindow, iw.ZOOM_LENGTH_MIN, iw.x, width),
+            (self._win.sbXstart, 0, max(0, iw.x - width), xOffset),
+            (self._win.sbYwindow, iw.ZOOM_LENGTH_MIN, iw.y, height),
+            (self._win.sbYstart, 0, max(0, iw.y - height), yOffset),
+        )
+        for sb, mn, mx, val in settings:
+            sb.blockSignals(True)
+            sb.setRange(mn, mx)
+            sb.setValue(val)
+            sb.blockSignals(False)
+
+    def _callback_zoom_region_edited(self):
+        """
+        Apply a zoom region entered manually via the ROI spin boxes.
+
+        :return:
+        """
+        iw = self._win.imageWidget
+        if not iw.x or not iw.y:
+            return
+        requested = (self._win.sbXstart.value(), self._win.sbYstart.value(),
+                     self._win.sbXwindow.value(), self._win.sbYwindow.value())
+        # No-op if nothing changed. editingFinished also fires when focus merely
+        # leaves the spin box (e.g. clicking the image), so this avoids marking an
+        # unzoomed image as zoomed on a plain click.
+        if requested == iw.get_zoom_region():
+            return
+        iw.set_zoom_from_ui(*requested)
+        # Reflect the actual (clamped) region back into the boxes immediately.
+        self._sync_zoom_spinboxes(force=True)
+
     def _callback_profiles_show_changed(self):
         """
         Callback used when the user on the GUI ticks or un-ticks the "Show
@@ -395,6 +466,15 @@ class ImageController:
         """
         self._win.imageWidget.set_freeze(self._win.freeze.isChecked())
 
+
+    def _callback_colormap_changed(self):
+        name = self._win.colormapComboBox.currentText()
+        if name == 'Grayscale':
+            self._win.imageWidget.set_colormap_lut(None)
+        else:
+            cmap = pg.colormap.get(name)
+            lut = cmap.getLookupTable(nPts=256)
+            self._win.imageWidget.set_colormap_lut(lut)
 
     def _callback_adjust_image_settings(self):
         """
@@ -761,12 +841,9 @@ class ImageController:
 
 
         # Update image and zoom section
-        self._win.lblXsize.setText(' '.join([str(self._win.imageWidget.x),
-                '' if not isZoomedImage else f"({width}|{xOffset}-{xOffset+width})"
-                                            ]))
-        self._win.lblYsize.setText(' '.join([str(self._win.imageWidget.y),
-                '' if not isZoomedImage else f"({height}|{yOffset}-{yOffset+height})"
-                                            ]))
+        self._win.lblXsize.setText(str(self._win.imageWidget.x))
+        self._win.lblYsize.setText(str(self._win.imageWidget.y))
+        self._sync_zoom_spinboxes()
         zoomMsg = ""
         zoomMsgStyle = "color: black"
         if (isZoomedImage and width == self._win.imageWidget.ZOOM_LENGTH_MIN

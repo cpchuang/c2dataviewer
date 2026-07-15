@@ -201,9 +201,15 @@ class TestImageDisplay(unittest.TestCase):
         # Update the GUI
         self.ic.updateStatus()
 
-        # Check the information on the gui
-        self.assertEqual("10 (5|4-9)", self.ic._win.lblXsize.text().strip())
-        self.assertEqual("10 (7|3-10)", self.ic._win.lblYsize.text().strip())
+        # Check the information on the gui. The size labels always show the full
+        # image size; the ROI window size and start pixel are shown in the
+        # editable spin boxes (height is clipped from 8 to 7 by the image edge).
+        self.assertEqual("10", self.ic._win.lblXsize.text().strip())
+        self.assertEqual("10", self.ic._win.lblYsize.text().strip())
+        self.assertEqual(5, self.ic._win.sbXwindow.value())
+        self.assertEqual(4, self.ic._win.sbXstart.value())
+        self.assertEqual(7, self.ic._win.sbYwindow.value())
+        self.assertEqual(3, self.ic._win.sbYstart.value())
         self.assertEqual("0 (0)", self.ic._win.deadPixel.text().strip())
         self.assertEqual("255.0 (76.0)", self.ic._win.maxPixel.text().strip())
         self.assertEqual("0.0 (23.0)", self.ic._win.minPixel.text().strip())
@@ -217,6 +223,10 @@ class TestImageDisplay(unittest.TestCase):
         # Check the information on the gui
         self.assertEqual("10", self.ic._win.lblXsize.text().strip())
         self.assertEqual("10", self.ic._win.lblYsize.text().strip())
+        self.assertEqual(10, self.ic._win.sbXwindow.value())
+        self.assertEqual(0, self.ic._win.sbXstart.value())
+        self.assertEqual(10, self.ic._win.sbYwindow.value())
+        self.assertEqual(0, self.ic._win.sbYstart.value())
         self.assertEqual("0", self.ic._win.deadPixel.text().strip())
         self.assertEqual("255.0", self.ic._win.maxPixel.text().strip())
         self.assertEqual("0.0", self.ic._win.minPixel.text().strip())

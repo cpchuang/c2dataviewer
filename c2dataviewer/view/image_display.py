@@ -182,9 +182,16 @@ class ImagePlotWidget(RawImageWidget):
     _set_image_signal = QtCore.pyqtSignal()
     connection_changed_signal = QtCore.Signal(str, str)
     right_button_clicked_signal = QtCore.pyqtSignal(QtCore.QPoint)
+    # Emitted whenever the displayed zoom region changes (mouse zoom/pan/wheel,
+    # manual entry or reset), so the GUI can refresh the ROI spin boxes.
+    zoom_region_changed_signal = QtCore.Signal()
     
     def __init__(self, parent=None, **kargs):
         RawImageWidget.__init__(self, parent, scaled=True)
+
+        # Accept keyboard focus on click so that clicking the image commits any
+        # in-progress edit in the ROI spin boxes and releases their focus.
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 
         self._set_image_signal.connect(self._set_image_signal_callback)
 
@@ -218,6 +225,9 @@ class ImagePlotWidget(RawImageWidget):
 
         # Image profiles
         self.image_profile_widget = None
+
+        # Colormap LUT
+        self._colormap_lut = None
 
         # Moving average
         self.image_list = []
@@ -336,6 +346,9 @@ class ImagePlotWidget(RawImageWidget):
         else:
             self.__zoomSelectionIndicator = TransparentRubberBand(QtWidgets.QRubberBand.Shape.Rectangle, self)
 
+    def set_colormap_lut(self, lut):
+        self._colormap_lut = lut
+
     def resizeEvent(self, event):
         """
         This method is called by the Qt when the widget change size. We use this to recalculate the
@@ -353,6 +366,10 @@ class ImagePlotWidget(RawImageWidget):
         :param event: (QMouseEvent) Parameter holding event details.
         :return: (None)
         """
+        # Take keyboard focus so any in-progress ROI spin-box edit is committed
+        # and no longer blocks the periodic spin-box refresh.
+        self.setFocus()
+
         # Get location of the click
         click_position = event.pos()
         self.click_x = click_position.x()
@@ -484,6 +501,10 @@ class ImagePlotWidget(RawImageWidget):
         :param event: (QMouseEvent) Parameter holding event details.
         :return: (None)
         """
+        # Take keyboard focus so any in-progress ROI spin-box edit is committed
+        # and no longer blocks the spin-box refresh.
+        self.setFocus()
+
         # Calculate the position of the mouse cursor relative to the widget
         mouse_x = event.position().x()
         mouse_y = event.position().y()
@@ -779,7 +800,26 @@ class ImagePlotWidget(RawImageWidget):
                 self.display(self.data, zoomUpdate=True)
             except Exception as e:
                 logging.getLogger().error('Error displaying data: %s', str(e))
-    
+
+        self.zoom_region_changed_signal.emit()
+
+    def set_zoom_from_ui(self, xOffset, yOffset, width, height):
+        """
+        Apply a zoom region entered manually via the UI (e.g. spin boxes).
+        Mirrors the mouse ROI path by updating the profile axis ranges before
+        applying the region. Out-of-range values are clipped by set_zoom_region.
+
+        :param xOffset: (int) ROI start pixel in X direction.
+        :param yOffset: (int) ROI start pixel in Y direction.
+        :param width: (int) ROI window size in X direction.
+        :param height: (int) ROI window size in Y direction.
+        :return: (None)
+        """
+        if self.image_profile_widget:
+            self.image_profile_widget.setXAxisRange(xOffset, xOffset + width)
+            self.image_profile_widget.setYAxisRange(yOffset, yOffset + height)
+        self.set_zoom_region(xOffset, yOffset, width, height)
+
     def pan_zoom_window(self, event):
         """
         This method allows a user to move the zoom window around the image by dragging 
@@ -853,6 +893,8 @@ class ImagePlotWidget(RawImageWidget):
                 self.display(self.data, zoomUpdate=True)
             except Exception as e:
                 logging.getLogger().error('Error displaying data: %s', str(e))
+
+        self.zoom_region_changed_signal.emit()
 
     def is_zoomed(self):
         """
@@ -1406,7 +1448,10 @@ class ImagePlotWidget(RawImageWidget):
         """
         image = self.draw_queue.get()
         levels = [image.black, image.white]
-        self.setImage(image.image, levels = levels)
+        if self._colormap_lut is not None and self.color_mode == COLOR_MODE_MONO:
+            self.setImage(image.image, levels=levels, lut=self._colormap_lut)
+        else:
+            self.setImage(image.image, levels=levels)
         if self.image_profile_widget is not None:
             img_width, img_height, _ = self.calc_img_size_on_screen()
             self.image_profile_widget.plot(img_width, img_height)
