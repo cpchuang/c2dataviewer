@@ -22,6 +22,7 @@ from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtGui, QtWidgets
 
 from ..view.image_definitions import COLOR_MODE_MONO, COLOR_MODES
+from ..view.ui_components import RangeSlider
 from ..model import ConnectionState
 
 class ImageController:
@@ -87,21 +88,28 @@ class ImageController:
         self._win.imageWidget.zoom_region_changed_signal.connect(
             lambda: self._sync_zoom_spinboxes())
 
-        # Black control
-        self._win.imageBlackSlider.valueChanged.connect(lambda: self._callback_black_changed_slider())
+        # Level control: a single dual-handle range slider (lower handle = black
+        # level, upper handle = white level) with the two spin boxes below it.
+        self._climSlider = RangeSlider()
+        self._win.climSliderContainer.layout().addWidget(self._climSlider)
+        self._climSlider.lowerValueChanged.connect(lambda: self._callback_black_changed_slider())
+        self._climSlider.upperValueChanged.connect(lambda: self._callback_white_changed_slider())
+
+        # Black control (lower handle)
         self._win.imageBlackSpinBox.valueChanged.connect(lambda: self._callback_black_changed_spin())
         self.changeimageBlackLimits(0, self.SLIDER_MAX_VAL)
-        self._imageBlackSliderFactor = 1
         self._win.imageWidget.set_BlackLimitsCallback(self.changeimageBlackLimits)
         self._win.imageWidget.set_BlackCallback(self.updateGuiBlack)
 
-        # White control
-        self._win.imageWhiteSlider.valueChanged.connect(lambda: self._callback_white_changed_slider())
+        # White control (upper handle)
         self._win.imageWhiteSpinBox.valueChanged.connect(lambda: self._callback_white_changed_spin())
         self.changeimageWhiteLimits(1, self.SLIDER_MAX_VAL)
-        self._imageWhiteSliderFactor = 1
         self._win.imageWidget.set_WhiteLimitsCallback(self.changeimageWhiteLimits)
         self._win.imageWidget.set_WhiteCallback(self.updateGuiWhite)
+
+        # Initialise the slider handles from the current spin box values.
+        self.updateGuiBlack(self._win.imageBlackSpinBox.value())
+        self.updateGuiWhite(self._win.imageWhiteSpinBox.value())
 
         # Auto adjust black/white
         self._win.imageAutoAdjust.clicked.connect(lambda: self.auto_levels_cal())
@@ -118,14 +126,6 @@ class ImageController:
         self._win.sbMovingAverageFrames.setToolTip("Number of frames to be used for calculating moving image average. ")
 
         # Set limits on the dialog widgets
-        self._image_settings_dialog.blackMin.setMinimum(self.SPINNER_MIN_VAL)
-        self._image_settings_dialog.blackMin.setMaximum(self.SPINNER_MAX_VAL)
-        self._image_settings_dialog.blackMax.setMinimum(self.SPINNER_MIN_VAL)
-        self._image_settings_dialog.blackMax.setMaximum(self.SPINNER_MAX_VAL)
-        self._image_settings_dialog.whiteMin.setMinimum(self.SPINNER_MIN_VAL)
-        self._image_settings_dialog.whiteMin.setMaximum(self.SPINNER_MAX_VAL)
-        self._image_settings_dialog.whiteMax.setMinimum(self.SPINNER_MIN_VAL)
-        self._image_settings_dialog.whiteMax.setMaximum(self.SPINNER_MAX_VAL)
         self._image_settings_dialog.displayQueueSize.setMinimum(self._win.imageWidget.MIN_DISPLAY_QUEUE_SIZE)
         self._image_settings_dialog.displayQueueSize.setMaximum(self._win.imageWidget.MAX_DISPLAY_QUEUE_SIZE)
         self._image_settings_dialog.sbCpuLimit.setMinimum(10)
@@ -211,6 +211,9 @@ class ImageController:
             name for name in pg.colormap.listMaps() if not name.startswith('CET-'))
         self._win.colormapComboBox.addItems(colormap_names)
         self._win.colormapComboBox.currentIndexChanged.connect(self._callback_colormap_changed)
+        # Default to "inferno" (applies the LUT via the callback).
+        if 'inferno' in colormap_names:
+            self._win.colormapComboBox.setCurrentText('inferno')
 
         self.frameRateChanged()
         self.camera_changed()
@@ -265,19 +268,18 @@ class ImageController:
 
     def _callback_black_changed_slider(self):
         """
-        This callback is called when user change the value on the "black" slider.
+        Called when the user drags the lower (black) handle of the level slider.
 
         :return:
         """
         try:
-            black = self._win.imageBlackSlider.value() / self._imageBlackSliderFactor
+            black = self._climSlider.lowerValue()
             self._win.imageWidget.set_black(black)
             self._win.imageBlackSpinBox.blockSignals(True)
             self._win.imageBlackSpinBox.setValue(black)
             self._win.imageBlackSpinBox.blockSignals(False)
         except:
             pass
-        self._win.imageBlackSlider.blockSignals(False)
 
     def _callback_black_changed_spin(self):
         """
@@ -286,22 +288,27 @@ class ImageController:
         :return:
         """
         try:
-            black = self._win.imageBlackSpinBox.value()
+            self._climSlider.blockSignals(True)
+            self._climSlider.setLowerValue(self._win.imageBlackSpinBox.value())
+            self._climSlider.blockSignals(False)
+            # The slider clamps black to be <= white; reflect the clamped value.
+            black = self._climSlider.lowerValue()
             self._win.imageWidget.set_black(black)
-            self._win.imageBlackSlider.blockSignals(True)
-            self._win.imageBlackSlider.setValue(black * self._imageBlackSliderFactor)
-            self._win.imageBlackSlider.blockSignals(False)
+            if black != self._win.imageBlackSpinBox.value():
+                self._win.imageBlackSpinBox.blockSignals(True)
+                self._win.imageBlackSpinBox.setValue(black)
+                self._win.imageBlackSpinBox.blockSignals(False)
         except:
             pass
 
     def _callback_white_changed_slider(self):
         """
-        This callback is called when user change the value on the "white" slider.
+        Called when the user drags the upper (white) handle of the level slider.
 
         :return:
         """
         try:
-            white = self._win.imageWhiteSlider.value() / self._imageWhiteSliderFactor
+            white = self._climSlider.upperValue()
             self._win.imageWidget.set_white(white)
             self._win.imageWhiteSpinBox.blockSignals(True)
             self._win.imageWhiteSpinBox.setValue(white)
@@ -316,12 +323,16 @@ class ImageController:
         :return:
         """
         try:
-            white = self._win.imageWhiteSpinBox.value()
+            self._climSlider.blockSignals(True)
+            self._climSlider.setUpperValue(self._win.imageWhiteSpinBox.value())
+            self._climSlider.blockSignals(False)
+            # The slider clamps white to be >= black; reflect the clamped value.
+            white = self._climSlider.upperValue()
             self._win.imageWidget.set_white(white)
-            self._win.imageWhiteSlider.blockSignals(True)
-            self._win.imageWhiteSlider.setValue(white * self._imageWhiteSliderFactor)
-            self._win.imageWhiteSlider.blockSignals(False)
-
+            if white != self._win.imageWhiteSpinBox.value():
+                self._win.imageWhiteSpinBox.blockSignals(True)
+                self._win.imageWhiteSpinBox.setValue(white)
+                self._win.imageWhiteSpinBox.blockSignals(False)
         except:
             pass
 
@@ -484,12 +495,6 @@ class ImageController:
         :return:
         """
         # Set current values
-        self._image_settings_dialog.blackMin.setValue(self._win.imageBlackSpinBox.minimum())
-        self._image_settings_dialog.blackMax.setValue(self._win.imageBlackSpinBox.maximum())
-        self._image_settings_dialog.whiteMin.setValue(self._win.imageWhiteSpinBox.minimum())
-        self._image_settings_dialog.whiteMax.setValue(self._win.imageWhiteSpinBox.maximum())
-        self._image_settings_dialog.whiteMax.setValue(self._win.imageWhiteSpinBox.maximum())
-
         self._image_settings_dialog.displayQueueSize.setValue(self._win.imageWidget.get_display_max_queue_size())
 
         self._image_settings_dialog.cbEnableDeadPixels.setChecked(self._win.imageWidget.get_preferences()['DPXEnabled'])
@@ -513,11 +518,6 @@ class ImageController:
 
         :return:
         """
-        self.changeimageBlackLimits(self._image_settings_dialog.blackMin.value(),
-                                    self._image_settings_dialog.blackMax.value())
-        self.changeimageWhiteLimits(self._image_settings_dialog.whiteMin.value(),
-                                   self._image_settings_dialog.whiteMax.value())
-
         preferences = {
             'DPXEnabled' : self._image_settings_dialog.cbEnableDeadPixels.isChecked(),
             'DPXLimit' : self._image_settings_dialog.sbDeadPixelThreshold.value(),
@@ -865,27 +865,36 @@ class ImageController:
         # Update the values on the settings dialog
         self._image_settings_dialog.currentDisplayQueueSize.setText(str(self._win.imageWidget.draw_queue.qsize()))
 
-    def changeimageBlackLimits(self, minVal, maxVal):
+    def _update_clim_slider_range(self):
         """
-        Set the minimum and the maximum for the black settings widgets (slider and the spinner).
-        If the value is too big or too small for the slider, factor will be calculated, by which
-        the value is multiplied/divided.
+        Set the shared range of the level slider to the union of the black and
+        white spin box limits, then re-align the handles to the current spin box
+        values. The slider is float-native so no scaling factor is needed.
 
-        :param minVal: (Number) Minimum possible setting for the slider and the spinner.
-        :param maxVal: (Number) Maximum possible setting for the slider and the spinner.
         :return:
         """
-        sliderFactor = 1
-        if (maxVal > self.SLIDER_MAX_VAL or minVal < self.SLIDER_MIN_VAL):
-            sliderFactor = max(self.SLIDER_MIN_VAL / minVal if minVal != 0 else 0,
-                               self.SLIDER_MAX_VAL / maxVal if maxVal != 0 else 0,)
+        minimum = min(self._win.imageBlackSpinBox.minimum(),
+                      self._win.imageWhiteSpinBox.minimum())
+        maximum = max(self._win.imageBlackSpinBox.maximum(),
+                      self._win.imageWhiteSpinBox.maximum())
+        self._climSlider.blockSignals(True)
+        self._climSlider.setRange(minimum, maximum)
+        self._climSlider.setLowerValue(self._win.imageBlackSpinBox.value())
+        self._climSlider.setUpperValue(self._win.imageWhiteSpinBox.value())
+        self._climSlider.blockSignals(False)
 
-        self._imageBlackSliderFactor = sliderFactor
-        self._win.imageBlackSlider.setMinimum(int(minVal * sliderFactor))
-        self._win.imageBlackSlider.setMaximum(int(maxVal * sliderFactor))
+    def changeimageBlackLimits(self, minVal, maxVal):
+        """
+        Set the minimum and the maximum for the black (lower) level spin box and
+        widen the shared level slider range to include it.
 
+        :param minVal: (Number) Minimum possible setting for the black spinner.
+        :param maxVal: (Number) Maximum possible setting for the black spinner.
+        :return:
+        """
         self._win.imageBlackSpinBox.setMinimum(minVal)
         self._win.imageBlackSpinBox.setMaximum(maxVal)
+        self._update_clim_slider_range()
 
     def getimageBlackLimits(self):
         """
@@ -898,25 +907,16 @@ class ImageController:
 
     def changeimageWhiteLimits(self, minVal, maxVal):
         """
-        Set the minimum and the maximum for the black settings widgets (slider and the spinner).
-        If the value is too big or too small for the slider, factor will be calculated, by which
-        the value is multiplied/divided.
+        Set the minimum and the maximum for the white (upper) level spin box and
+        widen the shared level slider range to include it.
 
-        :param minVal: (Number) Minimum possible setting for the slider and the spinner.
-        :param maxVal: (Number) Maximum possible setting for the slider and the spinner.
+        :param minVal: (Number) Minimum possible setting for the white spinner.
+        :param maxVal: (Number) Maximum possible setting for the white spinner.
         :return:
         """
-        sliderFactor = 1
-        if (maxVal > self.SLIDER_MAX_VAL or minVal < self.SLIDER_MIN_VAL):
-            sliderFactor = max(self.SLIDER_MIN_VAL / minVal if minVal != 0 else 0,
-                               self.SLIDER_MAX_VAL / maxVal if maxVal != 0 else 0,)
-
-        self._imageWhiteSliderFactor = sliderFactor
-        self._win.imageWhiteSlider.setMinimum(int(minVal * sliderFactor))
-        self._win.imageWhiteSlider.setMaximum(int(maxVal * sliderFactor))
-
         self._win.imageWhiteSpinBox.setMinimum(minVal)
         self._win.imageWhiteSpinBox.setMaximum(maxVal)
+        self._update_clim_slider_range()
 
     def getimageWhiteLimits(self):
         """
@@ -929,9 +929,9 @@ class ImageController:
 
     def updateGuiBlack(self, value):
         """
-        Update values on the black slider and spinner.
+        Update the black spin box and the lower handle of the level slider.
 
-        :param value: (Number) Value to be set to the black slider and spinner.
+        :param value: (Number) Value to be set as the black level.
         :return:
         """
         # Update the text spinner
@@ -939,15 +939,16 @@ class ImageController:
         self._win.imageBlackSpinBox.setValue(value)
         self._win.imageBlackSpinBox.blockSignals(False)
 
-        self._win.imageBlackSlider.blockSignals(True)
-        self._win.imageBlackSlider.setValue(int(value * self._imageBlackSliderFactor))
-        self._win.imageBlackSlider.blockSignals(False)
+        # Update the lower handle of the level slider
+        self._climSlider.blockSignals(True)
+        self._climSlider.setLowerValue(value)
+        self._climSlider.blockSignals(False)
 
     def updateGuiWhite(self, value):
         """
-        Update values on the white slider and spinner.
+        Update the white spin box and the upper handle of the level slider.
 
-        :param value: (Number) Value to be set to the white slider and spinner.
+        :param value: (Number) Value to be set as the white level.
         :return:
         """
         # Update the text spinner
@@ -955,7 +956,7 @@ class ImageController:
         self._win.imageWhiteSpinBox.setValue(value)
         self._win.imageWhiteSpinBox.blockSignals(False)
 
-        # Update the slider
-        self._win.imageWhiteSlider.blockSignals(True)
-        self._win.imageWhiteSlider.setValue(int(value * self._imageWhiteSliderFactor))
-        self._win.imageWhiteSlider.blockSignals(False)
+        # Update the upper handle of the level slider
+        self._climSlider.blockSignals(True)
+        self._climSlider.setUpperValue(value)
+        self._climSlider.blockSignals(False)

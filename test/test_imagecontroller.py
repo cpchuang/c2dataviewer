@@ -69,90 +69,82 @@ class TestImageDisplay(unittest.TestCase):
 
     def test_blackSetting(self):
         """
-        Test if setting black value behaves correctly
+        Test that setting the black (lower) level behaves correctly with the
+        consolidated dual-handle level slider.
 
         :return:
         """
+        # Raise white so the black (lower) handle is not constrained by it.
+        self.ic.changeimageWhiteLimits(0, self.ic.SLIDER_MAX_VAL)
+        self.ic.updateGuiWhite(self.ic.SLIDER_MAX_VAL)
 
-        # Test default values
-        self.assertEqual(0, self.ic._win.imageBlackSlider.value())
-        self.assertEqual(0, self.ic._win.imageBlackSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageBlackSlider.maximum())
+        # Test default black values (spin box + lower handle)
         self.assertEqual(0, self.ic._win.imageBlackSpinBox.value())
         self.assertEqual(0, self.ic._win.imageBlackSpinBox.minimum())
         self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageBlackSpinBox.maximum())
-
+        self.assertEqual(0, self.ic._climSlider.lowerValue())
+        self.assertEqual(0, self.ic._climSlider.minimum())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._climSlider.maximum())
 
         # Set black to 100
         self.ic.updateGuiBlack(100)
-        self.assertEqual(100, self.ic._win.imageBlackSlider.value())
-        self.assertEqual(0, self.ic._win.imageBlackSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageBlackSlider.maximum())
         self.assertEqual(100, self.ic._win.imageBlackSpinBox.value())
-        self.assertEqual(0, self.ic._win.imageBlackSpinBox.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageBlackSpinBox.maximum())
+        self.assertEqual(100, self.ic._climSlider.lowerValue())
 
-        # Set limits
+        # Set black limits; the spin value (100) is clamped to the new max (50)
         self.ic.changeimageBlackLimits(-10, 50)
-        self.assertEqual(50, self.ic._win.imageBlackSlider.value())
-        self.assertEqual(-10, self.ic._win.imageBlackSlider.minimum())
-        self.assertEqual(50, self.ic._win.imageBlackSlider.maximum())
-        self.assertEqual(50, self.ic._win.imageBlackSpinBox.value())
         self.assertEqual(-10, self.ic._win.imageBlackSpinBox.minimum())
         self.assertEqual(50, self.ic._win.imageBlackSpinBox.maximum())
+        self.assertEqual(50, self.ic._win.imageBlackSpinBox.value())
+        self.assertEqual(50, self.ic._climSlider.lowerValue())
+        # The slider spans the union of the black and white limits.
+        self.assertEqual(-10, self.ic._climSlider.minimum())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._climSlider.maximum())
 
-        # Set limits bigger than slider allows (test factor implementation)
+        # A large value needs no scaling factor (float-native slider). Raise
+        # white first so the black (lower) handle is free to reach the value.
+        self.ic.changeimageWhiteLimits(0, self.ic.SLIDER_MAX_VAL * 2)
+        self.ic.updateGuiWhite(self.ic.SLIDER_MAX_VAL * 2)
         self.ic.changeimageBlackLimits(0, self.ic.SLIDER_MAX_VAL * 2)
         self.ic.updateGuiBlack(self.ic.SLIDER_MAX_VAL * 1.5)
-        self.assertAlmostEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._win.imageBlackSlider.value() / self.ic._imageBlackSliderFactor, delta=1)
-        self.assertEqual(0, self.ic._win.imageBlackSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageBlackSlider.maximum())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._climSlider.lowerValue())
         self.assertEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._win.imageBlackSpinBox.value())
-        self.assertEqual(0, self.ic._win.imageBlackSpinBox.minimum())
         self.assertEqual(self.ic.SLIDER_MAX_VAL * 2, self.ic._win.imageBlackSpinBox.maximum())
 
     def test_whiteSetting(self):
         """
-        Test if setting white value behaves correctly
+        Test that setting the white (upper) level behaves correctly with the
+        consolidated dual-handle level slider.
 
         :return:
         """
-
-        # Test default values
-        self.assertEqual(1, self.ic._win.imageWhiteSlider.value())
-        self.assertEqual(1, self.ic._win.imageWhiteSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageWhiteSlider.maximum())
+        # Test default white values (spin box + upper handle)
         self.assertEqual(1, self.ic._win.imageWhiteSpinBox.value())
         self.assertEqual(1, self.ic._win.imageWhiteSpinBox.minimum())
         self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageWhiteSpinBox.maximum())
+        self.assertEqual(1, self.ic._climSlider.upperValue())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._climSlider.maximum())
 
-
-        # Set White to 100
+        # Set white to 100
         self.ic.updateGuiWhite(100)
-        self.assertEqual(100, self.ic._win.imageWhiteSlider.value())
-        self.assertEqual(1, self.ic._win.imageWhiteSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageWhiteSlider.maximum())
         self.assertEqual(100, self.ic._win.imageWhiteSpinBox.value())
-        self.assertEqual(1, self.ic._win.imageWhiteSpinBox.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageWhiteSpinBox.maximum())
+        self.assertEqual(100, self.ic._climSlider.upperValue())
 
-        # Set limits
+        # Set white limits; the spin value (100) is clamped to the new max (50)
         self.ic.changeimageWhiteLimits(-10, 50)
-        self.assertEqual(50, self.ic._win.imageWhiteSlider.value())
-        self.assertEqual(-10, self.ic._win.imageWhiteSlider.minimum())
-        self.assertEqual(50, self.ic._win.imageWhiteSlider.maximum())
-        self.assertEqual(50, self.ic._win.imageWhiteSpinBox.value())
         self.assertEqual(-10, self.ic._win.imageWhiteSpinBox.minimum())
         self.assertEqual(50, self.ic._win.imageWhiteSpinBox.maximum())
+        self.assertEqual(50, self.ic._win.imageWhiteSpinBox.value())
+        self.assertEqual(50, self.ic._climSlider.upperValue())
+        # The slider spans the union of the black and white limits.
+        self.assertEqual(-10, self.ic._climSlider.minimum())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._climSlider.maximum())
 
-        # Set limits bigger than slider allows (test factor implementation)
+        # A large value needs no scaling factor (float-native slider).
         self.ic.changeimageWhiteLimits(0, self.ic.SLIDER_MAX_VAL * 2)
         self.ic.updateGuiWhite(self.ic.SLIDER_MAX_VAL * 1.5)
-        self.assertAlmostEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._win.imageWhiteSlider.value() / self.ic._imageWhiteSliderFactor, delta=1)
-        self.assertEqual(0, self.ic._win.imageWhiteSlider.minimum())
-        self.assertEqual(self.ic.SLIDER_MAX_VAL, self.ic._win.imageWhiteSlider.maximum())
+        self.assertEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._climSlider.upperValue())
         self.assertEqual(self.ic.SLIDER_MAX_VAL * 1.5, self.ic._win.imageWhiteSpinBox.value())
-        self.assertEqual(0, self.ic._win.imageWhiteSpinBox.minimum())
         self.assertEqual(self.ic.SLIDER_MAX_VAL * 2, self.ic._win.imageWhiteSpinBox.maximum())
 
     def test_zoomInformation(self):

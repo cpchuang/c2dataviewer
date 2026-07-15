@@ -181,6 +181,24 @@
               <property name="formAlignment">
                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
               </property>
+              <property name="leftMargin">
+               <number>4</number>
+              </property>
+              <property name="topMargin">
+               <number>4</number>
+              </property>
+              <property name="rightMargin">
+               <number>4</number>
+              </property>
+              <property name="bottomMargin">
+               <number>4</number>
+              </property>
+              <property name="horizontalSpacing">
+               <number>6</number>
+              </property>
+              <property name="verticalSpacing">
+               <number>2</number>
+              </property>
               <item row="1" column="0">
                <widget class="QLabel" name="label_2">
                 <property name="text">
@@ -310,63 +328,98 @@
               <item row="5" column="0">
                <widget class="QLabel" name="label_6">
                 <property name="text">
-                 <string>Black: </string>
+                 <string>Levels:</string>
                 </property>
                </widget>
               </item>
               <item row="5" column="1">
                <layout class="QVBoxLayout" name="verticalLayout_6">
+                <property name="spacing">
+                 <number>2</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
                 <item>
-                 <widget class="QSlider" name="imageBlackSlider">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
+                 <widget class="QWidget" name="climSliderContainer" native="true">
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>24</height>
+                   </size>
                   </property>
+                  <layout class="QVBoxLayout" name="climSliderLayout">
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                  </layout>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QDoubleSpinBox" name="imageBlackSpinBox"/>
+                 <layout class="QHBoxLayout" name="climSpinLayout">
+                  <property name="spacing">
+                   <number>4</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="lblBlack">
+                    <property name="text">
+                     <string>Black</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="imageBlackSpinBox"/>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="lblWhite">
+                    <property name="text">
+                     <string>White</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QDoubleSpinBox" name="imageWhiteSpinBox"/>
+                  </item>
+                 </layout>
                 </item>
                </layout>
-              </item>
-              <item row="6" column="0">
-               <widget class="QLabel" name="label_19">
-                <property name="text">
-                 <string>White:</string>
-                </property>
-               </widget>
               </item>
               <item row="6" column="1">
-               <layout class="QVBoxLayout" name="verticalLayout_7">
-                <item>
-                 <widget class="QSlider" name="imageWhiteSlider">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QDoubleSpinBox" name="imageWhiteSpinBox"/>
-                </item>
-               </layout>
-              </item>
-              <item row="7" column="1">
                <widget class="QPushButton" name="imageAutoAdjust">
                 <property name="text">
                  <string>Auto</string>
                 </property>
                </widget>
               </item>
-              <item row="8" column="0">
+              <item row="7" column="0">
                <widget class="QLabel" name="lblColormap">
                 <property name="text">
                  <string>Colormap:</string>
                 </property>
                </widget>
               </item>
-              <item row="8" column="1">
+              <item row="7" column="1">
                <widget class="QComboBox" name="colormapComboBox"/>
               </item>
-              <item row="9" column="0" colspan="2">
+              <item row="8" column="0" colspan="2">
                <widget class="QLabel" name="movingAverageLabel">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -379,7 +432,7 @@
                 </property>
                </widget>
               </item>
-              <item row="10" column="0" colspan="2">
+              <item row="9" column="0" colspan="2">
                <widget class="QCheckBox" name="cbEnableMovingAverage">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -398,21 +451,21 @@
                 </property>
                </widget>
               </item>
-              <item row="11" column="0">
+              <item row="10" column="0">
                <widget class="QLabel" name="lblMovingAverageFrames">
                 <property name="text">
                  <string>MA Frames: </string>
                 </property>
                </widget>
               </item>
-              <item row="11" column="1">
+              <item row="10" column="1">
                <widget class="QSpinBox" name="sbMovingAverageFrames">
                 <property name="suffix">
                  <string notr="true"/>
                 </property>
                </widget>
               </item>
-              <item row="12" column="0" colspan="2">
+              <item row="11" column="0" colspan="2">
                <widget class="QLabel" name="lblProfilesSpacer">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -425,7 +478,7 @@
                 </property>
                </widget>
               </item>
-              <item row="13" column="0" colspan="2">
+              <item row="12" column="0" colspan="2">
                <widget class="QCheckBox" name="cbShowProfiles">
                 <property name="enabled">
                  <bool>true</bool>
@@ -435,7 +488,7 @@
                 </property>
                </widget>
               </item>
-              <item row="14" column="0" colspan="2">
+              <item row="13" column="0" colspan="2">
                <widget class="QCheckBox" name="cbShowRulers">
                 <property name="enabled">
                  <bool>true</bool>
